@@ -9,13 +9,16 @@ var data = {
 };
 
 var gui_elements = {
-
+    'vector idx for x': 0,
+    'vector idx for y': 1,
+    'redraw': redraw
 };
 
 var width, height;
 var xValues = [];
 var yValues = [];
-var vectorIndices = [1, 5];
+
+var vectorIndices = [0, 1];
 
 function load() {
     
@@ -80,7 +83,11 @@ function set_vectors(text) {
         data[i].vectors = v.slice(1, v.length).map(function(d) { return +d;} );
     });
     
+    gui_elements[0] = [0, data[0].length];
+    gui_elements[1] = [0, data[0].length];
+
     init();
+    addGui();
 }
 
 var scaleX, scaleY;
@@ -119,9 +126,7 @@ function setChartZoom(svg) {
     svg.call(zoom);
 }
 
-
 function init() {
-    
     var container = d3.select('.container').node();
     var header = d3.select('.header').node();
     container.style.height = (window.innerHeight - header.offsetHeight) + 'px';
@@ -380,6 +385,25 @@ function wrap(text, width) {
 
 function draw() {
     var svg = d3.select('svg');
+}
 
+function redraw() {
+    d3.select("svg").selectAll("*").remove();
+    init();
+}
+
+function addGui() {
+    var gui = new dat.GUI({ autoPlace: false });
+    var customContainer = $('.gui').append($(gui.domElement));
+    var svg = d3.select('svg');
     
+    gui.add(gui_elements, 'vector idx for x').min(0).max(data[0].vectors.length - 1).step(1).onChange(function(v) {
+        vectorIndices[0] = v;
+    });
+
+    gui.add(gui_elements, 'vector idx for y').min(0).max(data[0].vectors.length - 1).step(1).onChange(function(v) {
+        vectorIndices[1] = v;
+    });
+
+    gui.add(gui_elements, 'redraw');
 }
