@@ -1,0 +1,90 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Helvetica, Calibri, Roboto, Open Sans, sans-serif;
+    -webkit-backface-visibility: hidden;
+}
+
+* {
+    box-sizing: inherit;
+}
+
+#title {
+    margin: 0;
+    padding: 0 0 0 20px;
+    text-align: left;
+    /*line-height: 80px;*/
+    color: white;
+    display: inline;
+    vertical-align: middle;
+}
+
+.logo {
+    margin-left: 10px;
+    margin-top: 10px;
+    width: 80px;
+    height: 80px;
+    display: inline;
+    vertical-align: middle;
+}
+
+.header {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100px;
+    display: block;
+    background-color: black;
+    font-family: Roboto, Helvetica, snas-serif;
+}
+
+.active {
+  stroke: #000;
+  stroke-width: 3px;
+}
+
+.gui { 
+    position: absolute;
+    top: 100px;
+    right: 0px;
+}
+
+.container {
+    width: 100%;
+}
+
+text {
+  font-size: 13px;
+  text-anchor: middle;
+}
+
+text.clicked {
+    font-weight: bold;
+    text-decoration: underline;
+}
+
+svg {
+    margin: auto;
+    display:block;
+}
+
+
+.hidden {
+    display: none;
+}
+
+.legend-color text {
+    font-size: 13px;
+    text-anchor: start;
+}
+
+
+.legend-size circle {
+    fill: rgb(200, 200, 200);
+}
+
+.legend-search text {
+    font-size: 13px;
+    text-anchor: start;
+}
