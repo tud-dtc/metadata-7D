@@ -15,7 +15,7 @@ var gui_elements = {
 var width, height;
 var xValues = [];
 var yValues = [];
-var vectorIndices = [0, 1];
+var vectorIndices = [1, 5];
 
 function load() {
     
@@ -77,48 +77,48 @@ function set_vectors(text) {
     var rows = d3.tsvParseRows(text);
 
     rows.map(function(v, i) { 
-        data[i].vectors = v.slice(1, v.length);
+        data[i].vectors = v.slice(1, v.length).map(function(d) { return +d;} );
     });
     
     init();
 }
 
-function setNormalZoom(svg) {
-    zoom.scaleExtent([0.1, 3])
-        .on('zoom', function() {
-            var transform = d3.event.transform;
-            svg.select('g').attr('transform', transform);
-           
-        });
+var scaleX, scaleY;
+var xAxis, yAxis;
+var gX, gY;
+
+function setChartZoom(svg) {
+    zoom.scaleExtent([1, 10])
+    //.extent([100, 100], [width-100, height-100])
+    .on("zoom", function(d){
+
+        var transform = d3.event.transform;
+
+        var scaledX, scaledY;
+        scaledX = transform.rescaleX(scaleX);
+        scaledY = transform.rescaleY(scaleY);
+
+        svg.selectAll('.snippet').attr('transform', transform);
+        svg.selectAll('.snippet_circle').attr('r', 3/transform.k);
+
+        // console.log(transform);
+
+        // svg.selectAll('.textbox').attr('transform', 'translate(' + [transform.x, transform.y] + ')');
+        // svg.selectAll('.line').attr('transform', transform);
+        
+        gX.call(xAxis.scale(scaledX));
+        gY.call(yAxis.scale(scaledY));
+
+        // d3.select(this).attr("transform", "translate(" + (d.x = d3.event.x) + "," + (d.y = d3.event.y) + ")");
+        // d3.select(this).select('line')
+        //                 .attr("transform", "translate(" + (-d.x) + "," + (-d.y) + ")")
+        //                 .attr("x2", d.textbox.bbox.x)
+        //                 .attr("y2", d.textbox.bbox.y + d.textbox.bbox.height);     
+    });
+    
     svg.call(zoom);
 }
 
-// function setSacledZoom(svg) {
-//     var aspect = width / height;
-//     var n = Math.floor(width / (2.1 * Math.sqrt(aspect * 100)));
-//     var i = n * 1.8;
-//     var o = 1.1 * n;
-
-//     var xScale = d3.scaleLinear().domain([0, width]).range([o, width - o]);
-//     var yScale = d3.scaleLinear().domain([height, 0]).range([height - o, o]);
-//     var snippets = svg.selectAll('.snippet');
-
-//     zoom.scaleExtent([1, 15])
-//         .on('zoom', function() {
-//             var transform = d3.event.transform;
-//             var scaledX, scaledY;
-            
-//             snippets.transition().duration(1)
-//                 .attr('transform', function(d) {
-//                     scaledX = transform.applyX(xScale(d.x));
-//                     scaledY = transform.applyY(yScale(d.y));
-
-//                     return 'translate(' + [scaledX, scaledY] + ')';
-//                 });
-//         });
-
-//     svg.call(zoom);
-// }
 
 function init() {
     
@@ -148,41 +148,44 @@ function init() {
         yValues.push(d.vectors[vectorIndices[1]]);
     });
 
-    var xDomain = [d3.min(xValues, function(d) { return +d; }), d3.max(xValues, function(d) { return +d; })];
-    var yDomain = [d3.min(yValues, function(d) { return +d; }), d3.max(yValues, function(d) { return +d; })];
+    var xDomain = [d3.min(xValues), d3.max(xValues)];
+    var yDomain = [d3.min(yValues), d3.max(yValues)];
     
+    // console.log([Math.min.apply(Math, xValues), Math.max.apply(Math, xValues)])
     console.log(xDomain, yDomain);
 
-    var scaleX = d3.scaleLinear()
+    scaleX = d3.scaleLinear()
                     .domain(xDomain)
                     .range([0, width]);
 
-    var scaleY = d3.scaleLinear()
+    scaleY = d3.scaleLinear()
                     .domain(yDomain)
                     .range([height, 0]);
 
-    var xAxis = d3.axisBottom(scaleX);
-    var yAxis = d3.axisLeft(scaleY).tickPadding(20);
+    xAxis = d3.axisBottom(scaleX);
+    yAxis = d3.axisLeft(scaleY).tickPadding(20);
 
     data.forEach(function(d) {
-        d.originX = scaleX(d.vectors[vectorIndices[0]]);
-        d.originY = scaleY(d.vectors[vectorIndices[1]]);
+        d.originX = +scaleX(d.vectors[vectorIndices[0]]);
+        d.originY = +scaleY(d.vectors[vectorIndices[1]]);
+        d.x = d.originX;
+        d.y = d.originY;
 
         d.textbox = {created: false, hidden: false};
     });
 
+    zoom = d3.zoom();
+    setChartZoom(svg);
+
     var chart = svg.append('g')
                     .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
     
-    zoom = d3.zoom();
-    setNormalZoom(svg);
-
-    chart.append('g')
+    gX = chart.append('g')
         .attr('class', 'x axis')
         .attr('transform', 'translate(0,' + height + ')')
         .call(xAxis);
 
-    chart.append('g')
+    gY = chart.append('g')
         .attr('class', 'y axis')
         .call(yAxis);
 
@@ -208,6 +211,7 @@ function init() {
                         .attr('class', 'snippet');
 
     circle = snippets.append('circle')
+        .attr('class', 'snippet_circle')
         .attr('r', 3)
         .attr('cx', function(d) { return d.originX; })
         .attr('cy', function(d) { return d.originY; })
@@ -216,8 +220,16 @@ function init() {
         .on('click', function(d) {
             let currentGroup = d3.select(this.parentNode);
 
+            // var point = document.getElementById('root').createSVGPoint();//here roor is the svg's id
+            // point.x = d3.select(this).attr("cx");//get the circle cx 
+            // point.y = d3.select(this).attr("cy");//get the circle cy
+
+            // var newPoint = point.matrixTransform(this.getCTM());//new point after the transform
+            // console.log(newPoint);
+            
+
             if(d.textbox.created == false) {
-                var textbox = currentGroup.append('g').classed('textbox', true);
+                var textbox = currentGroup.append('g').attr('class', 'textbox');
                 textbox.style('cursor', 'move');
                 
                 var textboxMargin = { 
