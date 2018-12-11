@@ -48,6 +48,7 @@ html, body {
     position: absolute;
     top: 100px;
     right: 0px;
+    z-index: 9999;
 }
 
 .container {
@@ -68,7 +69,6 @@ svg {
     margin: auto;
     display:block;
 }
-
 
 .hidden {
     display: none;
