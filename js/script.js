@@ -169,7 +169,7 @@ function init() {
     updateScale();
 
     zoom = d3.zoom();
-    setChartZoom(svg);
+    //setChartZoom(svg);
 
     chart = svg.append('g')
                     .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
@@ -497,6 +497,8 @@ function redraw() {
     
     renderData();
     infoSVG.selectAll('*').remove();
+
+    infoSVG.call(zoom.transform, d3.zoomIdentity);
 }
 
 function addGui() {
