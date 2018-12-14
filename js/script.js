@@ -25,9 +25,60 @@ var xAxis, yAxis;
 var gX, gY;
 var canvas, offscreen;
 let colorToDataIndex = {};
+var svgClientNode;
+var isFF, isMSIE;
+var progressBarWidth;
+var progress;
 
 function load() {
+    var ua = window.navigator.userAgent;
+    isFF = (ua.indexOf('Firefox') > 0);
+    isMSIE = (ua.indexOf('MSIE ') > 0 || !!navigator.userAgent.match(/Trident.*rv\:11\./));
     
+    var container = d3.select('.container').node();
+    var header = d3.select('.header').node();
+    container.style.height = (window.innerHeight - header.offsetHeight) + 'px';
+    
+    var svg = d3.select('svg');
+    svgClientNode = (isFF)? svg.node().parentNode : svg.node();
+    width = svgClientNode.clientWidth;
+    height = svgClientNode.clientHeight;
+
+    var w = Math.max(200, width * 0.3);
+    var h = 20;
+    progressBarWidth = w;
+
+    var g = svg.append('g')
+                .attr('class', 'progress');
+
+    g.append('rect')
+        .attr('rx', 10)
+        .attr('ry', 10)
+        .attr('fill', 'gray')
+        .attr('height', h)
+        .attr('width', w)
+        .attr('x', (width - w) * 0.5)
+        .attr('y', (height - h) * 0.5);
+
+
+
+    progress = g.append('rect')
+                .attr('rx', 10)
+                .attr('ry', 10)
+                .attr('fill', d3.rgb(0, 200, 190))
+                .attr('height', h)
+                .attr('width', 10)
+                .attr('x', (width - w) * 0.5)
+                .attr('y', (height - h) * 0.5);
+                    
+    g.append('text')
+        .attr('fill', 'white')
+        .attr('x', (width - w) * 0.5 + 10)
+        .attr('y', (height) * 0.5)
+        .style('text-anchor', 'start')
+        .style('alignment-baseline', 'central')
+        .text('Loading data...');
+
     load_data(data_folder[0] + files.metadata, function(e, i) {
         
         if (typeof i === 'string') {
@@ -80,6 +131,10 @@ function set_metadata(text) {
     data = rows.map(function(t, i) {
         return {idx:i, text:t};
     });
+
+    progress.transition().duration(1000).attr('width', function() {
+        return progressBarWidth * 0.5;
+    });
 }
 
 function set_vectors(text) {
@@ -88,15 +143,19 @@ function set_vectors(text) {
     rows.map(function(v, i) { 
         data[i].vectors = v.slice(1, v.length).map(function(d) { return +d;} );
     });
-    
-    gui_elements[0] = [0, data[0].length];
-    gui_elements[1] = [0, data[0].length];
 
-    init();
-    addGui();
+    progress.transition().duration(1000).attr('width', function() {
+        return progressBarWidth;
+    }).on('end', function() {
+        d3.select('.progress').remove();
+        
+        gui_elements[0] = [0, data[0].length];
+        gui_elements[1] = [0, data[0].length];
+
+        init();
+        addGui();
+    });
 }
-
-
 
 function setChartZoom(svg) {
     zoom.scaleExtent([1, 15])
@@ -145,17 +204,9 @@ function setChartZoom(svg) {
 var chart, highlight, infoSVG;
 
 function init() {
-    var container = d3.select('.container').node();
-    var header = d3.select('.header').node();
-    container.style.height = (window.innerHeight - header.offsetHeight) + 'px';
-    
-    var ua = window.navigator.userAgent;
-    isMSIE = (ua.indexOf('MSIE ') > 0 || !!navigator.userAgent.match(/Trident.*rv\:11\./));
-    isFF = (ua.indexOf('Firefox') > 0);
-
     var svg = d3.select('svg');
-    var svgClientNode = (isFF)? svg.node().parentNode : svg.node();
-   
+    var header = d3.select('.header').node();
+
     var margin = {
           top: 50,
           right: 50,
@@ -319,6 +370,8 @@ function renderData() {
         offscreenContext.fill();
 
     });
+
+    var selectedIndex;
 
     infoSVG.on('mousemove', function() {
         const mouse = d3.mouse(this);
