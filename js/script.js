@@ -1,8 +1,8 @@
 var data_folder = ['data/']
 //var data_folder = ['data/us_canada_humanities_2017/']
 var files = {
-        vectors: 'snippet_vectors100_small.tsv',
-        metadata: 'snippets_metadata-1_small.tsv'
+        vectors: 'snippet_vectors100.tsv',
+        metadata: 'snippets_metadata-1.tsv'
 };
 
 var data = {
@@ -142,10 +142,8 @@ function set_metadata(text) {
 
 function set_vectors(text) {
     var rows = d3.tsvParseRows(text);
-    var firstIndex = 0;
+    var firstIndex = 1; // index 0 is topic id
     
-    if(rows[0][0] == "") firstIndex = 1;
-
     rows.map(function(v, i) {
         data[i].vectors = v.slice(firstIndex, v.length).map(function(d) { return +d;} );
     });
