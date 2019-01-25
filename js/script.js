@@ -76,26 +76,29 @@ function load() {
         .attr('x', (width - w) * 0.5 + 10)
         .attr('y', (height) * 0.5)
         .style('text-anchor', 'start')
-        .style('alignment-baseline', 'central')
+        .style('dominant-baseline', 'central')
         .text('Loading data...');
 
     load_data(data_folder[0] + files.metadata, function(e, i) {
         
         if (typeof i === 'string') {
             set_metadata(i);
+
+            load_data(data_folder[0] + files.vectors, function(e, i) {
+        
+                if (typeof i === 'string') {
+                    set_vectors(i);
+                } else {
+                    console.log('Unable to load a file ' + files.vectors)
+                }
+            });
+
         } else {
             console.log('Unable to load a file ' + files.metadata)
         }
     });
 
-    load_data(data_folder[0] + files.vectors, function(e, i) {
-        
-        if (typeof i === 'string') {
-            set_vectors(i);
-        } else {
-            console.log('Unable to load a file ' + files.vectors)
-        }
-    });
+    
 };
 
 function load_data(e, t) {
@@ -129,7 +132,7 @@ function set_metadata(text) {
     var rows = text.split(/\r?\n/);
 
     data = rows.map(function(t, i) {
-        return {idx:i, text:t};
+        return {idx:i, text:t, vectors:[]};
     });
 
     progress.transition().duration(1000).attr('width', function() {
@@ -139,9 +142,12 @@ function set_metadata(text) {
 
 function set_vectors(text) {
     var rows = d3.tsvParseRows(text);
+    var firstIndex = 0;
+    
+    if(rows[0][0] == "") firstIndex = 1;
 
-    rows.map(function(v, i) { 
-        data[i].vectors = v.slice(1, v.length).map(function(d) { return +d;} );
+    rows.map(function(v, i) {
+        data[i].vectors = v.slice(firstIndex, v.length).map(function(d) { return +d;} );
     });
 
     progress.transition().duration(1000).attr('width', function() {
