@@ -1,8 +1,8 @@
 var data_folder = ['data/']
 //var data_folder = ['data/us_canada_humanities_2017/']
 var files = {
-        vectors: 'snippet_vectors100.tsv',
-        metadata: 'snippets_metadata-1.tsv'
+        vectors: 'snippet_vectors100_small.tsv',
+        metadata: 'snippets_metadata-1_small.tsv'
 };
 
 var data = {
@@ -214,7 +214,7 @@ function init() {
     var header = d3.select('.header').node();
 
     var margin = {
-          top: 50,
+          top: 120,
           right: 50,
           bottom: 50,
           left: 80
@@ -321,8 +321,8 @@ function updateScale() {
         yValues.push(d.vectors[vectorIndices[1]]);
     });
 
-    var xDomain = [d3.min(xValues), d3.max(xValues)];
-    var yDomain = [d3.min(yValues), d3.max(yValues)];
+    var xDomain = [d3.min(xValues) * 0.8, d3.max(xValues) * 1.2];
+    var yDomain = [d3.min(yValues) * 0.8, d3.max(yValues) * 1.2];
 
     scaleX = d3.scaleLinear()
                     .domain(xDomain)
