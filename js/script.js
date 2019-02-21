@@ -1,26 +1,33 @@
 var data_folder = ['data/']
 //var data_folder = ['data/us_canada_humanities_2017/']
 var files = {
-        vectors: 'snippet_vectors100.tsv',
-        metadata: 'snippets_metadata-1.tsv'
+        vectors: 'vectors_TVPPL.tsv',
+        vectors_metadata: 'vectors_metadata.tsv',
+        docs_metadata: 'docs_metadata.tsv'
 };
 
 var data = {
 };
 
 var gui_elements = {
-    'vector idx for x': 0,
-    'vector idx for y': 1,
+    'x-axis': [],
+    'y-axis': [],
+    'hue': [],
+    'saturation': [],
+    'brightness': [],
+    'size': [],
     'redraw': redraw
 };
 
 var width, height;
 var xValues = [];
 var yValues = [];
+var sizeValues = [];
+var colorValues = {h: [], s: [], b: []};
 
-var vectorIndices = [0, 1];
+var vectorIndices = {x: 151, y: 207, hue: 251, saturation: 1, brightness: 1, size: 254}; // indices for x, y, hue, saturation, brightness, and size
 
-var scaleX, scaleY;
+var scaleX, scaleY, scaleSize, scaleHue, scaleSaturation, scaleBrightness;
 var xAxis, yAxis;
 var gX, gY;
 var canvas, offscreen;
@@ -79,22 +86,35 @@ function load() {
         .style('dominant-baseline', 'central')
         .text('Loading data...');
 
-    load_data(data_folder[0] + files.metadata, function(e, i) {
+
+    load_data(data_folder[0] + files.docs_metadata, function(e, i) {
         
         if (typeof i === 'string') {
-            set_metadata(i);
+            set_docs_metadata(i);
 
             load_data(data_folder[0] + files.vectors, function(e, i) {
         
                 if (typeof i === 'string') {
                     set_vectors(i);
+
+                    load_data(data_folder[0] + files.vectors_metadata, function(e, i) {
+        
+                        if (typeof i === 'string') {
+                            set_vectors_metadata(i);
+                        } else {
+                            console.log('Unable to load a file ' + files.vectors_metadata)
+                        }
+                    });
+
                 } else {
                     console.log('Unable to load a file ' + files.vectors)
                 }
             });
 
+            
+
         } else {
-            console.log('Unable to load a file ' + files.metadata)
+            console.log('Unable to load a file ' + files.docs_metadata)
         }
     });
 
@@ -127,8 +147,7 @@ function load_data(e, t) {
     })
 };
 
-
-function set_metadata(text) {
+function set_docs_metadata(text) {
     var rows = text.split(/\r?\n/);
 
     data = rows.map(function(t, i) {
@@ -136,26 +155,36 @@ function set_metadata(text) {
     });
 
     progress.transition().duration(1000).attr('width', function() {
-        return progressBarWidth * 0.5;
+        return progressBarWidth * 0.33;
     });
 }
 
 function set_vectors(text) {
     var rows = d3.tsvParseRows(text);
-    var firstIndex = 1; // index 0 is topic id
+    var firstIndex = 0;
     
     rows.map(function(v, i) {
-        data[i].vectors = v.slice(firstIndex, v.length).map(function(d) { return +d;} );
+        if(i < data.length) 
+            data[i].vectors = v.slice(firstIndex, v.length).map(function(d) { return +d;} );
     });
+
+    progress.transition().duration(1000).attr('width', function() {
+        return progressBarWidth * 0.66;
+    });
+}
+
+function set_vectors_metadata(text) {
+    var rows = text.split(/\r?\n/);
+
+    if(rows.length > data[0].vectors.length) rows = rows.slice(0, data[0].vectors.length);
+
+    data.vectors_metadata = rows;
 
     progress.transition().duration(1000).attr('width', function() {
         return progressBarWidth;
     }).on('end', function() {
         d3.select('.progress').remove();
         
-        gui_elements[0] = [0, data[0].length];
-        gui_elements[1] = [0, data[0].length];
-
         init();
         addGui();
     });
@@ -176,8 +205,8 @@ function setChartZoom(svg) {
 
         data.forEach(function(d) {
             
-            var newX = +rescaledX(d.vectors[vectorIndices[0]]);
-            var newY = +rescaledY(d.vectors[vectorIndices[1]]);
+            var newX = +rescaledX(d.vectors[vectorIndices.x]);
+            var newY = +rescaledY(d.vectors[vectorIndices.y]);
             var dx = d.originX - newX;
             var dy = d.originY - newY;
 
@@ -269,6 +298,8 @@ function init() {
                 .style('z-index', 9998);
 
     setChartZoom(infoSVG);
+    updateSizeScale();
+    updateColorScale();
     renderData();
 }   
 
@@ -310,18 +341,61 @@ function wrap(text, width) {
     });
 }
 
-
-function updateScale() {
-    xValues = yVales = [];
+function updateColorScale() {
+    colorValues.h = [];
+    colorValues.s = [];
+    colorValues.b = [];
 
     data.forEach(function(d) {
-        xValues.push(d.vectors[vectorIndices[0]]);
-        yValues.push(d.vectors[vectorIndices[1]]);
+        colorValues.h.push(d.vectors[vectorIndices.hue]);
+        colorValues.s.push(d.vectors[vectorIndices.saturation]);
+        colorValues.b.push(d.vectors[vectorIndices.brightness]);
+    });
+
+    var hDomain = [d3.min(colorValues.h), d3.max(colorValues.h)];
+    var sDomain = [d3.min(colorValues.s), d3.max(colorValues.s)];
+    var bDomain = [d3.min(colorValues.b), d3.max(colorValues.b)];
+
+    scaleHue = d3.scaleLinear()
+                    .domain(hDomain)
+                    .range([360, 90]);
+
+    scaleSaturation = d3.scaleLinear()
+                    .domain(sDomain)
+                    .range([0, 100]);
+
+    scaleBrightness = d3.scaleLog()
+                    .domain(bDomain)
+                    .range([0, 100]);
+}
+
+function updateSizeScale() {
+    sizeValues = [];
+
+    data.forEach(function(d) {
+        xValues.push(d.vectors[vectorIndices.x]);
+        yValues.push(d.vectors[vectorIndices.y]);
+        sizeValues.push(d.vectors[vectorIndices.size]);
+    });
+    
+    var sizeDomain = [d3.min(sizeValues), d3.max(sizeValues)];
+
+    scaleSize = d3.scaleLinear()
+                    .domain(sizeDomain)
+                    .range([2, 20]);
+}
+
+function updateScale() {
+    xValues = yValues = [];
+    
+    data.forEach(function(d) {
+        xValues.push(d.vectors[vectorIndices.x]);
+        yValues.push(d.vectors[vectorIndices.y]);
     });
 
     var xDomain = [d3.min(xValues) * 0.8, d3.max(xValues) * 1.2];
     var yDomain = [d3.min(yValues) * 0.8, d3.max(yValues) * 1.2];
-
+    
     scaleX = d3.scaleLinear()
                     .domain(xDomain)
                     .range([0, width]);
@@ -329,13 +403,13 @@ function updateScale() {
     scaleY = d3.scaleLinear()
                     .domain(yDomain)
                     .range([height, 0]);
-
+    
     xAxis = d3.axisBottom(scaleX);
     yAxis = d3.axisLeft(scaleY).tickPadding(20);
 
     data.forEach(function(d) {
-        d.originX = +scaleX(d.vectors[vectorIndices[0]]);
-        d.originY = +scaleY(d.vectors[vectorIndices[1]]);
+        d.originX = +scaleX(d.vectors[vectorIndices.x]);
+        d.originY = +scaleY(d.vectors[vectorIndices.y]);
         d.x = d.originX;
         d.y = d.originY;
 
@@ -349,7 +423,8 @@ function renderData() {
     var context = canvas.node().getContext('2d');
     var offscreenContext = offscreen.node().getContext('2d');
 
-    context.fillStyle = 'red';
+   
+
     context.clearRect(0, 0, width, height);
     offscreenContext.clearRect(0, 0, width, height);
     
@@ -367,12 +442,18 @@ function renderData() {
         context.beginPath();
         offscreenContext.beginPath();
 
-        context.arc(d.originX, d.originY, 3, 0, 2 * Math.PI);
-        offscreenContext.arc(d.originX, d.originY, 3, 0, 2 * Math.PI);
+        context.arc(d.originX, d.originY, scaleSize(d.vectors[vectorIndices.size]), 0, 2 * Math.PI);
+        offscreenContext.arc(d.originX, d.originY, scaleSize(d.vectors[vectorIndices.size]), 0, 2 * Math.PI);
 
+        var rgbColor = hsvToRgb(scaleHue(d.vectors[vectorIndices.hue]),
+                                scaleSaturation(d.vectors[vectorIndices.saturation]),
+                                scaleBrightness(d.vectors[vectorIndices.brightness]));
+        
+        var c = d3.rgb(rgbColor[0], rgbColor[1], rgbColor[2]).toString();
+        
+        context.fillStyle = c;
         context.fill();
         offscreenContext.fill();
-
     });
 
     var selectedIndex;
@@ -396,7 +477,7 @@ function renderData() {
         if(!hidden) {
             highlight.attr('cx', data[selectedIndex].originX)
                 .attr('cy', data[selectedIndex].originY);
-
+            highlight.attr('r', scaleSize(data[selectedIndex].vectors[vectorIndices.size]) + 3);
             infoSVG.style('cursor', 'pointer');
         }
     });
@@ -563,13 +644,39 @@ function addGui() {
     var customContainer = $('.gui').append($(gui.domElement));
     var svg = d3.select('svg');
     
-    gui.add(gui_elements, 'vector idx for x').min(0).max(data[0].vectors.length - 1).step(1).onChange(function(v) {
-        vectorIndices[0] = v;
-    });
+    gui.add(gui_elements, 'x-axis', data.vectors_metadata).onChange(function(v) {
+        vectorIndices.x = data.vectors_metadata.indexOf(v);
+        redraw();
+    }).setValue(data.vectors_metadata[vectorIndices.x]);
 
-    gui.add(gui_elements, 'vector idx for y').min(0).max(data[0].vectors.length - 1).step(1).onChange(function(v) {
-        vectorIndices[1] = v;
-    });
+    gui.add(gui_elements, 'y-axis', data.vectors_metadata).onChange(function(v) {
+        vectorIndices.y = data.vectors_metadata.indexOf(v);
+        redraw();
+    }).setValue(data.vectors_metadata[vectorIndices.y]);
 
-    gui.add(gui_elements, 'redraw');
+    gui.add(gui_elements, 'hue', data.vectors_metadata).onChange(function(v) {
+        vectorIndices.hue = data.vectors_metadata.indexOf(v);
+        updateColorScale();
+        renderData();
+    }).setValue(data.vectors_metadata[vectorIndices.hue]);
+
+    gui.add(gui_elements, 'saturation', data.vectors_metadata).onChange(function(v) {
+        vectorIndices.saturation = data.vectors_metadata.indexOf(v);
+        updateColorScale();
+        renderData();
+    }).setValue(data.vectors_metadata[vectorIndices.saturation]);
+
+    gui.add(gui_elements, 'brightness', data.vectors_metadata).onChange(function(v) {
+        vectorIndices.brightness = data.vectors_metadata.indexOf(v);
+        updateColorScale();
+        renderData();
+    }).setValue(data.vectors_metadata[vectorIndices.brightness]);
+
+    gui.add(gui_elements, 'size', data.vectors_metadata).onChange(function(v) {
+        vectorIndices.size = data.vectors_metadata.indexOf(v);
+        updateSizeScale();
+        renderData();
+    }).setValue(data.vectors_metadata[vectorIndices.size]);
+
+    //gui.add(gui_elements, 'redraw');
 }
