@@ -373,8 +373,6 @@ function updateSizeScale() {
     sizeValues = [];
 
     data.forEach(function(d) {
-        xValues.push(d.vectors[vectorIndices.x]);
-        yValues.push(d.vectors[vectorIndices.y]);
         sizeValues.push(d.vectors[vectorIndices.size]);
     });
     
@@ -386,7 +384,8 @@ function updateSizeScale() {
 }
 
 function updateScale() {
-    xValues = yValues = [];
+    xValues = [];
+    yValues = [];
     
     data.forEach(function(d) {
         xValues.push(d.vectors[vectorIndices.x]);
