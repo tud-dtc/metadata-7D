@@ -12,22 +12,22 @@ var data = {
 var gui_elements = {
     'x-axis': [],
     'y-axis': [],
-    'hue': [],
-    'saturation': [],
-    'brightness': [],
+    'red': [],
+    'green': [],
+    'blue': [],
     'size': [],
-    'redraw': redraw
+    'scaled': 0.0
 };
 
 var width, height;
 var xValues = [];
 var yValues = [];
 var sizeValues = [];
-var colorValues = {h: [], s: [], b: []};
+var colorValues = {r: [], g: [], b: []};
 
-var vectorIndices = {x: 151, y: 207, hue: 251, saturation: 1, brightness: 1, size: 254}; // indices for x, y, hue, saturation, brightness, and size
+var vectorIndices = {x: 151, y: 207, r: 251, g: 1, b: 1, size: 254}; // indices for x, y, hue, saturation, brightness, and size
 
-var scaleX, scaleY, scaleSize, scaleHue, scaleSaturation, scaleBrightness;
+var scaleX, scaleY, scaleSize, scaleRed, scaleGreen, scaleBlue;
 var xAxis, yAxis;
 var gX, gY;
 var canvas, offscreen;
@@ -342,31 +342,33 @@ function wrap(text, width) {
 }
 
 function updateColorScale() {
-    colorValues.h = [];
-    colorValues.s = [];
+    colorValues.r = [];
+    colorValues.g = [];
     colorValues.b = [];
 
     data.forEach(function(d) {
-        colorValues.h.push(d.vectors[vectorIndices.hue]);
-        colorValues.s.push(d.vectors[vectorIndices.saturation]);
-        colorValues.b.push(d.vectors[vectorIndices.brightness]);
+        colorValues.r.push(d.vectors[vectorIndices.r]);
+        colorValues.g.push(d.vectors[vectorIndices.g]);
+        colorValues.b.push(d.vectors[vectorIndices.b]);
     });
 
-    var hDomain = [d3.min(colorValues.h), d3.max(colorValues.h)];
-    var sDomain = [d3.min(colorValues.s), d3.max(colorValues.s)];
+    var rDomain = [d3.min(colorValues.r), d3.max(colorValues.r)];
+    var gDomain = [d3.min(colorValues.g), d3.max(colorValues.g)];
     var bDomain = [d3.min(colorValues.b), d3.max(colorValues.b)];
 
-    scaleHue = d3.scaleLinear()
-                    .domain(hDomain)
-                    .range([360, 90]);
+    //console.log(rDomain, gDomain, bDomain);
 
-    scaleSaturation = d3.scaleLinear()
-                    .domain(sDomain)
-                    .range([0, 100]);
+    scaleRed = d3.scaleLinear()
+                    .domain(rDomain)
+                    .range([0, 255 - k]);
 
-    scaleBrightness = d3.scaleLog()
-                    .domain(bDomain)
-                    .range([0, 100]);
+    scaleGreen = d3.scaleLinear()
+                    .domain(rDomain)
+                    .range([0, 255 - k]);
+
+    scaleBlue = d3.scaleLog()
+                    .domain(rDomain)
+                    .range([0, 255 - k]);
 }
 
 function updateSizeScale() {
@@ -443,12 +445,10 @@ function renderData() {
 
         context.arc(d.originX, d.originY, scaleSize(d.vectors[vectorIndices.size]), 0, 2 * Math.PI);
         offscreenContext.arc(d.originX, d.originY, scaleSize(d.vectors[vectorIndices.size]), 0, 2 * Math.PI);
-
-        var rgbColor = hsvToRgb(scaleHue(d.vectors[vectorIndices.hue]),
-                                scaleSaturation(d.vectors[vectorIndices.saturation]),
-                                scaleBrightness(d.vectors[vectorIndices.brightness]));
         
-        var c = d3.rgb(rgbColor[0], rgbColor[1], rgbColor[2]).toString();
+        var c = d3.rgb(scaleRed(d.vectors[vectorIndices.r]),
+                        scaleGreen(d.vectors[vectorIndices.g]),
+                        scaleBlue(d.vectors[vectorIndices.b])).toString();
         
         context.fillStyle = c;
         context.fill();
@@ -638,6 +638,8 @@ function redraw() {
     infoSVG.call(zoom.transform, d3.zoomIdentity);
 }
 
+var k = 0;
+
 function addGui() {
     var gui = new dat.GUI({ autoPlace: false });
     var customContainer = $('.gui').append($(gui.domElement));
@@ -653,29 +655,35 @@ function addGui() {
         redraw();
     }).setValue(data.vectors_metadata[vectorIndices.y]);
 
-    gui.add(gui_elements, 'hue', data.vectors_metadata).onChange(function(v) {
-        vectorIndices.hue = data.vectors_metadata.indexOf(v);
+    gui.add(gui_elements, 'red', data.vectors_metadata).onChange(function(v) {
+        vectorIndices.r = data.vectors_metadata.indexOf(v);
         updateColorScale();
         renderData();
-    }).setValue(data.vectors_metadata[vectorIndices.hue]);
+    }).setValue(data.vectors_metadata[vectorIndices.r]);
 
-    gui.add(gui_elements, 'saturation', data.vectors_metadata).onChange(function(v) {
-        vectorIndices.saturation = data.vectors_metadata.indexOf(v);
+    gui.add(gui_elements, 'green', data.vectors_metadata).onChange(function(v) {
+        vectorIndices.g = data.vectors_metadata.indexOf(v);
         updateColorScale();
         renderData();
-    }).setValue(data.vectors_metadata[vectorIndices.saturation]);
+    }).setValue(data.vectors_metadata[vectorIndices.g]);
 
-    gui.add(gui_elements, 'brightness', data.vectors_metadata).onChange(function(v) {
-        vectorIndices.brightness = data.vectors_metadata.indexOf(v);
+    gui.add(gui_elements, 'blue', data.vectors_metadata).onChange(function(v) {
+        vectorIndices.b = data.vectors_metadata.indexOf(v);
         updateColorScale();
         renderData();
-    }).setValue(data.vectors_metadata[vectorIndices.brightness]);
+    }).setValue(data.vectors_metadata[vectorIndices.b]);
 
     gui.add(gui_elements, 'size', data.vectors_metadata).onChange(function(v) {
         vectorIndices.size = data.vectors_metadata.indexOf(v);
         updateSizeScale();
         renderData();
     }).setValue(data.vectors_metadata[vectorIndices.size]);
+
+    gui.add(gui_elements, 'scaled', 0, 250).onChange(function(v) {
+        k = v;
+        updateColorScale();
+        renderData();
+    });
 
     //gui.add(gui_elements, 'redraw');
 }
