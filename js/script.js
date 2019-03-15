@@ -16,18 +16,21 @@ var gui_elements = {
     'green': [],
     'blue': [],
     'size': [],
-    'scaled': 0.0
+    'enable k': false,
+    'k': []
+
 };
 
 var width, height;
 var xValues = [];
 var yValues = [];
 var sizeValues = [];
+var kValues = [];
 var colorValues = {r: [], g: [], b: []};
 
-var vectorIndices = {x: 151, y: 207, r: 251, g: 1, b: 1, size: 254}; // indices for x, y, hue, saturation, brightness, and size
+var vectorIndices = {x: 151, y: 207, r: 251, g: 1, b: 1, size: 254, k: 100}; // indices for x, y, hue, saturation, brightness, and size
 
-var scaleX, scaleY, scaleSize, scaleRed, scaleGreen, scaleBlue;
+var scaleX, scaleY, scaleSize, scaleRed, scaleGreen, scaleBlue, scaleK;
 var xAxis, yAxis;
 var gX, gY;
 var canvas, offscreen;
@@ -36,6 +39,7 @@ var svgClientNode;
 var isFF, isMSIE;
 var progressBarWidth;
 var progress;
+var isKEnabled = false;
 
 function load() {
     var ua = window.navigator.userAgent;
@@ -300,6 +304,7 @@ function init() {
     setChartZoom(infoSVG);
     updateSizeScale();
     updateColorScale();
+    updateKValueScale();
     renderData();
 }   
 
@@ -341,11 +346,25 @@ function wrap(text, width) {
     });
 }
 
+function updateKValueScale() {
+    kValues = [];
+
+    data.forEach(function(d) {
+        kValues.push(d.vectors[vectorIndices.k]);
+    });
+
+    var kDomain = [d3.min(kValues), d3.max(kValues)];
+
+    scaleK = d3.scaleLinear()
+                    .domain(kDomain)
+                    .range([0, 1]);
+}
+
 function updateColorScale() {
     colorValues.r = [];
     colorValues.g = [];
     colorValues.b = [];
-
+    
     data.forEach(function(d) {
         colorValues.r.push(d.vectors[vectorIndices.r]);
         colorValues.g.push(d.vectors[vectorIndices.g]);
@@ -356,19 +375,17 @@ function updateColorScale() {
     var gDomain = [d3.min(colorValues.g), d3.max(colorValues.g)];
     var bDomain = [d3.min(colorValues.b), d3.max(colorValues.b)];
 
-    //console.log(rDomain, gDomain, bDomain);
-
     scaleRed = d3.scaleLinear()
                     .domain(rDomain)
-                    .range([0, 255 - k]);
+                    .range([0, 255]);
 
     scaleGreen = d3.scaleLinear()
                     .domain(rDomain)
-                    .range([0, 255 - k]);
+                    .range([0, 255]);
 
-    scaleBlue = d3.scaleLog()
+    scaleBlue = d3.scaleLinear()
                     .domain(rDomain)
-                    .range([0, 255 - k]);
+                    .range([0, 255]);
 }
 
 function updateSizeScale() {
@@ -424,8 +441,6 @@ function renderData() {
     var context = canvas.node().getContext('2d');
     var offscreenContext = offscreen.node().getContext('2d');
 
-   
-
     context.clearRect(0, 0, width, height);
     offscreenContext.clearRect(0, 0, width, height);
     
@@ -446,9 +461,12 @@ function renderData() {
         context.arc(d.originX, d.originY, scaleSize(d.vectors[vectorIndices.size]), 0, 2 * Math.PI);
         offscreenContext.arc(d.originX, d.originY, scaleSize(d.vectors[vectorIndices.size]), 0, 2 * Math.PI);
         
-        var c = d3.rgb(scaleRed(d.vectors[vectorIndices.r]),
-                        scaleGreen(d.vectors[vectorIndices.g]),
-                        scaleBlue(d.vectors[vectorIndices.b])).toString();
+        //k = [0, 1]
+        //checkbox ui for deciding to apply k factor
+        var k = (isKEnabled)? scaleK(d.vectors[vectorIndices.k]) : 1;
+        var c = d3.rgb(scaleRed(d.vectors[vectorIndices.r]) * k,
+                        scaleGreen(d.vectors[vectorIndices.g]) * k,
+                        scaleBlue(d.vectors[vectorIndices.b]) * k).toString();
         
         context.fillStyle = c;
         context.fill();
@@ -679,11 +697,18 @@ function addGui() {
         renderData();
     }).setValue(data.vectors_metadata[vectorIndices.size]);
 
-    gui.add(gui_elements, 'scaled', 0, 250).onChange(function(v) {
-        k = v;
-        updateColorScale();
+    gui.add(gui_elements, 'enable k').onChange(function(v) {
+        isKEnabled = v;
+        console.log(v);
         renderData();
     });
+
+    gui.add(gui_elements, 'k', data.vectors_metadata).onChange(function(v) {
+        vectorIndices.k = data.vectors_metadata.indexOf(v);
+        updateKValueScale();
+        renderData();
+    }).setValue(data.vectors_metadata[vectorIndices.k]);
+
 
     //gui.add(gui_elements, 'redraw');
 }
