@@ -1,13 +1,12 @@
-var data_folder = ['data/']
-//var data_folder = ['data/us_canada_humanities_2017/']
+var data_folder = ['data/', 'data/transposed/']
+
 var files = {
-        vectors: 'vectors_TVPPL.tsv',
-        vectors_metadata: 'vectors_metadata.tsv',
-        docs_metadata: 'docs_metadata.tsv'
+        vectors: 'matrix.tsv',
+        vectors_metadata: 'cols.tsv',
+        docs_metadata: 'rows.tsv'
 };
 
-var data = {
-};
+var data = [{}, {}];
 
 var gui_elements = {
     'x-axis': [],
@@ -21,19 +20,34 @@ var gui_elements = {
 
 };
 
+let LEFT = 0, RIGHT = 1;
+
 var width, height;
-var xValues = [];
-var yValues = [];
-var sizeValues = [];
-var kValues = [];
-var colorValues = {r: [], g: [], b: []};
+var xValues = [[],[]];
+var yValues = [[],[]];
+var sizeValues = [[],[]];
+var kValues = [[],[]];
+var scaleSize = [,], scaleRed = [,], scaleGreen = [,], scaleBlue = [,], scaleK = [,];
 
-var vectorIndices = {x: 151, y: 207, r: 251, g: 1, b: 1, size: 254, k: 100}; // indices for x, y, hue, saturation, brightness, and size
 
-var scaleX, scaleY, scaleSize, scaleRed, scaleGreen, scaleBlue, scaleK;
-var xAxis, yAxis;
-var gX, gY;
-var canvas, offscreen;
+var colorValues =[{r: [], g: [], b: []}, 
+                 {r: [], g: [], b: []}];
+
+ // indices for x, y, hue, saturation, brightness, and size
+var vectorIndices = [{x: 0, y: 1, r: 1, g: 0, b: 0, size: 0, k: 0},
+                    {x: 0, y: 1, r: 1, g: 0, b: 0, size: 0, k: 0}];
+
+
+var scaleX = [,];
+var scaleY = [,];
+var xAxis = [,];
+var yAxis = [,];
+var gX = [,];
+var gY = [,];
+var canvas = [,];
+var offscreen = [,];
+var zoom = [,];
+
 let colorToDataIndex = {};
 var svgClientNode;
 var isFF, isMSIE;
@@ -90,21 +104,22 @@ function load() {
         .style('dominant-baseline', 'central')
         .text('Loading data...');
 
-
+    // use https://github.com/d3/d3-queue later
     load_data(data_folder[0] + files.docs_metadata, function(e, i) {
         
         if (typeof i === 'string') {
-            set_docs_metadata(i);
+            set_docs_metadata(i, LEFT);
 
             load_data(data_folder[0] + files.vectors, function(e, i) {
         
                 if (typeof i === 'string') {
-                    set_vectors(i);
+                    set_vectors(i, LEFT);
 
                     load_data(data_folder[0] + files.vectors_metadata, function(e, i) {
         
                         if (typeof i === 'string') {
-                            set_vectors_metadata(i);
+                            set_vectors_metadata(i, LEFT);
+
                         } else {
                             console.log('Unable to load a file ' + files.vectors_metadata)
                         }
@@ -122,10 +137,41 @@ function load() {
         }
     });
 
+    load_data(data_folder[1] + files.docs_metadata, function(e, i) {
+        
+        if (typeof i === 'string') {
+            set_docs_metadata(i, RIGHT);
+
+            load_data(data_folder[1] + files.vectors, function(e, i) {
+        
+                if (typeof i === 'string') {
+                    set_vectors(i, RIGHT);
+
+                    load_data(data_folder[1] + files.vectors_metadata, function(e, i) {
+        
+                        if (typeof i === 'string') {
+                            set_vectors_metadata(i, RIGHT);
+
+                        } else {
+                            console.log('Unable to load a file ' + files.vectors_metadata)
+                        }
+                    });
+
+                } else {
+                    console.log('Unable to load a file ' + files.vectors)
+                }
+            });
+
+            
+
+        } else {
+            console.log('Unable to load a file ' + files.docs_metadata)
+        }
+    });
     
 };
 
-function load_data(e, t) {
+function load_data(e, t, data) {
     var i, n;
     if (e === undefined) {
         return t('target undefined', undefined)
@@ -151,10 +197,10 @@ function load_data(e, t) {
     })
 };
 
-function set_docs_metadata(text) {
+function set_docs_metadata(text, pos) {
     var rows = text.split(/\r?\n/);
 
-    data = rows.map(function(t, i) {
+    data[pos] = rows.map(function(t, i) {
         return {idx:i, text:t, vectors:[]};
     });
 
@@ -163,13 +209,13 @@ function set_docs_metadata(text) {
     });
 }
 
-function set_vectors(text) {
+function set_vectors(text, pos) {
     var rows = d3.tsvParseRows(text);
     var firstIndex = 0;
     
     rows.map(function(v, i) {
-        if(i < data.length) 
-            data[i].vectors = v.slice(firstIndex, v.length).map(function(d) { return +d;} );
+        if(i < data[pos].length) 
+            data[pos][i].vectors = v.slice(firstIndex, v.length).map(function(d) { return +d;} );
     });
 
     progress.transition().duration(1000).attr('width', function() {
@@ -177,40 +223,42 @@ function set_vectors(text) {
     });
 }
 
-function set_vectors_metadata(text) {
+function set_vectors_metadata(text, pos) {
     var rows = text.split(/\r?\n/);
 
-    if(rows.length > data[0].vectors.length) rows = rows.slice(0, data[0].vectors.length);
+    if(rows.length > data[pos][0].vectors.length) rows = rows.slice(0, data[pos][0].vectors.length);
 
-    data.vectors_metadata = rows;
+    data[pos].vectors_metadata = rows;
 
     progress.transition().duration(1000).attr('width', function() {
         return progressBarWidth;
     }).on('end', function() {
         d3.select('.progress').remove();
         
-        init();
-        addGui();
+        if(pos == RIGHT) {
+            init();
+            addGui();
+        }
     });
 }
 
-function setChartZoom(svg) {
-    zoom.scaleExtent([1, 15])
+function setChartZoom(pos) {
+    zoom[pos].scaleExtent([0.5, 15])
     .on("zoom", function(){
 
         var transform = d3.event.transform;
 
         var rescaledX, rescaledY;
-        rescaledX = transform.rescaleX(scaleX);
-        rescaledY = transform.rescaleY(scaleY);
+        rescaledX = transform.rescaleX(scaleX[pos]);
+        rescaledY = transform.rescaleY(scaleY[pos]);
         
-        gX.call(xAxis.scale(rescaledX));
-        gY.call(yAxis.scale(rescaledY));
+        gX[pos].call(xAxis[pos].scale(rescaledX));
+        gY[pos].call(yAxis[pos].scale(rescaledY));
 
-        data.forEach(function(d) {
+        data[pos].forEach(function(d) {
             
-            var newX = +rescaledX(d.vectors[vectorIndices.x]);
-            var newY = +rescaledY(d.vectors[vectorIndices.y]);
+            var newX = +rescaledX(d.vectors[vectorIndices[pos].x]);
+            var newY = +rescaledY(d.vectors[vectorIndices[pos].y]);
             var dx = d.originX - newX;
             var dy = d.originY - newY;
 
@@ -227,88 +275,148 @@ function setChartZoom(svg) {
             //d.textbox = {created: false, hidden: false};
         });
         
-        renderData();
-
-        infoSVG.selectAll('.textbox[id]').attr('transform', function() {
-            var d = data[this.id];
+        renderData(pos);
+        infoSVG[pos].selectAll('.textbox[id]').attr('transform', function() {
+            var d = data[pos][this.id];
             return  'translate(' + [d.x, d.y] + ')';
         });
     });
     
-    svg.call(zoom);
+    infoSVG[pos].call(zoom[pos]);
 }
 
-var chart, highlight, infoSVG;
+var chart = [,];
+var highlight = [,];
+var infoSVG = [,];
+
+// function toggleToResize(isLeftColumn) {
+//     var svg = d3.select('svg')
+
+//     width *= (isLeftColumn)? 0.5 : 2.0;
+
+//     updateScale();
+//     gX.call(xAxis);
+//     gY.call(yAxis);
+    
+//     canvas.attr('width', width);
+    
+//     offscreen.attr('width', width)
+//     infoSVG.attr('width', width)
+           
+//     renderData();
+//     infoSVG.call(zoom.transform, d3.zoomIdentity);
+// }
+
+function redraw(pos) {
+    
+    updateScale(pos);
+    
+    gX[pos].call(xAxis[pos]);
+    gY[pos].call(yAxis[pos]);
+    
+    renderData(pos);
+    infoSVG[pos].selectAll('*').remove();
+
+    infoSVG[pos].call(zoom[pos].transform, d3.zoomIdentity);
+}
+
+var margin = {
+        top: 50,
+        right: 10,
+        bottom: 50,
+        left: 300
+    };
+
+var padding = {
+        left: 25,
+        right: 25
+    };
 
 function init() {
     var svg = d3.select('svg');
     var header = d3.select('.header').node();
 
-    var margin = {
-          top: 120,
-          right: 50,
-          bottom: 50,
-          left: 80
-        };
-
     width = svgClientNode.clientWidth - margin.left - margin.right;
     height = svgClientNode.clientHeight - margin.top - margin.bottom;
     
-    updateScale();
+    width = width * 0.5 - (padding.left + padding.right);
 
-    zoom = d3.zoom();
-    //setChartZoom(svg);
+    updateScale(LEFT);
+    updateScale(RIGHT);
 
-    chart = svg.append('g')
+    zoom[LEFT] = d3.zoom();
+    zoom[RIGHT] = d3.zoom();
+
+    chart[LEFT] = svg.append('g')
                     .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
     
-    gX = chart.append('g')
-        .attr('class', 'x axis')
-        .attr('transform', 'translate(0,' + height + ')')
-        .call(xAxis);
+    chart[RIGHT] = svg.append('g')
+                    .attr('transform', 'translate(' + (width + margin.left + padding.left + padding.right)+ ',' + margin.top + ')');
+    
+    var canvasArea = [,];
 
-    gY = chart.append('g')
-        .attr('class', 'y axis')
-        .call(yAxis);
-
-    var canvasArea = d3.select('.container')
+    canvasArea[LEFT] = d3.select('.container')
                         .append('div')
                         .style('left', margin.left + 'px')
                         .style('top', header.offsetHeight + margin.top + 'px')
                         .style('position', 'absolute');
+    
+    canvasArea[RIGHT] = d3.select('.container')
+                        .append('div')
+                        .style('left', (width + margin.left + padding.left + padding.right) + 'px')
+                        .style('top', header.offsetHeight + margin.top + 'px')
+                        .style('position', 'absolute');
+    
+    for(var pos = 0; pos < 2; pos++) {                
+        gX[pos]= chart[pos].append('g')
+            .attr('class', 'x axis')
+            .attr('transform', 'translate(0,' + height + ')')
+            .call(xAxis[pos]);
 
-    canvas = canvasArea.append('canvas')
+        gY[pos] = chart[pos].append('g')
+            .attr('class', 'y axis')
+            .call(yAxis[pos]);
+
+        canvas[pos] = canvasArea[pos].append('canvas')
                         .attr('width', width)
                         .attr('height', height);
-                            
+        
+        offscreen[pos] = d3.select(document.createElement('canvas'))
+                .attr('width', width)
+                .attr('height', height);
 
-    offscreen = d3.select(document.createElement('canvas'))
-                    .attr('width', width)
-                    .attr('height', height);
+        highlight[pos] = chart[pos].append("g")
+                .attr('class', 'highlight')
+                .append("circle")
+                    .attr("r", 5)
+                    .attr('stroke-width', 3)
+                    .attr('stroke', d3.rgb(0, 190, 200))
+                    .classed("hidden", true);
 
-    highlight = chart.append("g")
-                        .attr('class', 'highlight')
-                        .append("circle")
-                            .attr("r", 5)
-                            .attr('stroke-width', 3)
-                            .attr('stroke', d3.rgb(0, 190, 200))
-                            .classed("hidden", true);
-
-    infoSVG = canvasArea.append('svg')
+        infoSVG[pos] = canvasArea[pos].append('svg')
                 .attr('width', width)
                 .attr('height', height)
                 .style('position', 'absolute')
                 .style('top', 0)
                 .style('z-index', 9998);
 
-    setChartZoom(infoSVG);
-    updateSizeScale();
-    updateColorScale();
-    updateKValueScale();
-    renderData();
+    }
+
+    setChartZoom(LEFT);
+    updateSizeScale(LEFT);
+    updateColorScale(LEFT);
+    updateKValueScale(LEFT);
+    renderData(LEFT);
+
+    setChartZoom(RIGHT);
+    updateSizeScale(RIGHT);
+    updateColorScale(RIGHT);
+    updateKValueScale(RIGHT);
+    renderData(RIGHT);
 }   
 
 //Text wrapping based on https://bl.ocks.org/mbostock/7555321
+//Later, use https://github.com/vijithassar/d3-textwrap instead because of the license issue
 function wrap(text, width) {
 
     text.each(function () {
@@ -346,88 +454,89 @@ function wrap(text, width) {
     });
 }
 
-function updateKValueScale() {
-    kValues = [];
+function updateKValueScale(pos) {
+    kValues[pos] = [];
 
-    data.forEach(function(d) {
-        kValues.push(d.vectors[vectorIndices.k]);
+    data[pos].forEach(function(d) {
+        kValues[pos].push(d.vectors[vectorIndices[pos].k]);
     });
 
-    var kDomain = [d3.min(kValues), d3.max(kValues)];
+    var kDomain = [d3.min(kValues[pos]), d3.max(kValues[pos])];
 
-    scaleK = d3.scaleLinear()
+    scaleK[pos] = d3.scaleLinear()
                     .domain(kDomain)
                     .range([0, 1]);
 }
 
-function updateColorScale() {
-    colorValues.r = [];
-    colorValues.g = [];
-    colorValues.b = [];
+function updateColorScale(pos) {
+    colorValues[pos].r = [];
+    colorValues[pos].g = [];
+    colorValues[pos].b = [];
     
-    data.forEach(function(d) {
-        colorValues.r.push(d.vectors[vectorIndices.r]);
-        colorValues.g.push(d.vectors[vectorIndices.g]);
-        colorValues.b.push(d.vectors[vectorIndices.b]);
+    data[pos].forEach(function(d) {
+        colorValues[pos].r.push(d.vectors[vectorIndices[pos].r]);
+        colorValues[pos].g.push(d.vectors[vectorIndices[pos].g]);
+        colorValues[pos].b.push(d.vectors[vectorIndices[pos].b]);
     });
 
-    var rDomain = [d3.min(colorValues.r), d3.max(colorValues.r)];
-    var gDomain = [d3.min(colorValues.g), d3.max(colorValues.g)];
-    var bDomain = [d3.min(colorValues.b), d3.max(colorValues.b)];
+    var rDomain = [d3.min(colorValues[pos].r), d3.max(colorValues[pos].r)];
+    var gDomain = [d3.min(colorValues[pos].g), d3.max(colorValues[pos].g)];
+    var bDomain = [d3.min(colorValues[pos].b), d3.max(colorValues[pos].b)];
 
-    scaleRed = d3.scaleLinear()
+    scaleRed[pos] = d3.scaleLinear()
                     .domain(rDomain)
                     .range([0, 255]);
 
-    scaleGreen = d3.scaleLinear()
-                    .domain(rDomain)
+    scaleGreen[pos] = d3.scaleLinear()
+                    .domain(gDomain)
                     .range([0, 255]);
 
-    scaleBlue = d3.scaleLinear()
-                    .domain(rDomain)
+    scaleBlue[pos] = d3.scaleLinear()
+                    .domain(bDomain)
                     .range([0, 255]);
 }
 
-function updateSizeScale() {
-    sizeValues = [];
+function updateSizeScale(pos) {
+    sizeValues[pos] = [];
 
-    data.forEach(function(d) {
-        sizeValues.push(d.vectors[vectorIndices.size]);
+    data[pos].forEach(function(d) {
+        sizeValues[pos].push(d.vectors[vectorIndices[pos].size]);
     });
     
-    var sizeDomain = [d3.min(sizeValues), d3.max(sizeValues)];
+    var sizeDomain = [d3.min(sizeValues[pos]), d3.max(sizeValues[pos])];
 
-    scaleSize = d3.scaleLinear()
+    scaleSize[pos] = d3.scaleLinear()
                     .domain(sizeDomain)
                     .range([2, 20]);
 }
 
-function updateScale() {
-    xValues = [];
-    yValues = [];
+function updateScale(pos) {
+    xValues[pos] = [];
+    yValues[pos] = [];
     
-    data.forEach(function(d) {
-        xValues.push(d.vectors[vectorIndices.x]);
-        yValues.push(d.vectors[vectorIndices.y]);
+    data[pos].forEach(function(d) {
+        xValues[pos].push(d.vectors[vectorIndices[pos].x]);
+        yValues[pos].push(d.vectors[vectorIndices[pos].y]);
     });
 
-    var xDomain = [d3.min(xValues) * 0.8, d3.max(xValues) * 1.2];
-    var yDomain = [d3.min(yValues) * 0.8, d3.max(yValues) * 1.2];
-    
-    scaleX = d3.scaleLinear()
-                    .domain(xDomain)
-                    .range([0, width]);
+    var xDomain = [d3.min(xValues[pos]) * 0.8, d3.max(xValues[pos]) * 1.2];
+    var yDomain = [d3.min(yValues[pos]) * 0.8, d3.max(yValues[pos]) * 1.2];
 
-    scaleY = d3.scaleLinear()
-                    .domain(yDomain)
-                    .range([height, 0]);
-    
-    xAxis = d3.axisBottom(scaleX);
-    yAxis = d3.axisLeft(scaleY).tickPadding(20);
+    scaleX[pos] = d3.scaleLinear()
+                .domain(xDomain)
+                .range([0, width]);
 
-    data.forEach(function(d) {
-        d.originX = +scaleX(d.vectors[vectorIndices.x]);
-        d.originY = +scaleY(d.vectors[vectorIndices.y]);
+    scaleY[pos] = d3.scaleLinear()
+                .domain(yDomain)
+                .range([height, 0]);
+    
+    xAxis[pos] = d3.axisBottom(scaleX[pos]);
+    yAxis[pos] = d3.axisLeft(scaleY[pos]).tickPadding(20);
+
+
+    data[pos].forEach(function(d) {
+        d.originX = +scaleX[pos](d.vectors[vectorIndices[pos].x]);
+        d.originY = +scaleY[pos](d.vectors[vectorIndices[pos].y]);
         d.x = d.originX;
         d.y = d.originY;
 
@@ -437,14 +546,14 @@ function updateScale() {
 
 // drawing on canvas and interacting with data points
 // based on: https://bl.ocks.org/veltman/f539d97e922b918d47e2b2d1a8bcd2dd
-function renderData() {
-    var context = canvas.node().getContext('2d');
-    var offscreenContext = offscreen.node().getContext('2d');
+function renderData(pos) {
+    var context = canvas[pos].node().getContext('2d');
+    var offscreenContext = offscreen[pos].node().getContext('2d');
 
     context.clearRect(0, 0, width, height);
     offscreenContext.clearRect(0, 0, width, height);
     
-    data.forEach(function(d, i) {
+    data[pos].forEach(function(d, i) {
         
         if(d.originX < 0 || d.originX > width || 
             d.originY < 0 || d.originY > height) return;
@@ -458,15 +567,15 @@ function renderData() {
         context.beginPath();
         offscreenContext.beginPath();
 
-        context.arc(d.originX, d.originY, scaleSize(d.vectors[vectorIndices.size]), 0, 2 * Math.PI);
-        offscreenContext.arc(d.originX, d.originY, scaleSize(d.vectors[vectorIndices.size]), 0, 2 * Math.PI);
+        context.arc(d.originX, d.originY, scaleSize[pos](d.vectors[vectorIndices[pos].size]), 0, 2 * Math.PI);
+        offscreenContext.arc(d.originX, d.originY, scaleSize[pos](d.vectors[vectorIndices[pos].size]), 0, 2 * Math.PI);
         
         //k = [0, 1]
         //checkbox ui for deciding to apply k factor
-        var k = (isKEnabled)? scaleK(d.vectors[vectorIndices.k]) : 1;
-        var c = d3.rgb(scaleRed(d.vectors[vectorIndices.r]) * k,
-                        scaleGreen(d.vectors[vectorIndices.g]) * k,
-                        scaleBlue(d.vectors[vectorIndices.b]) * k).toString();
+        var k = (isKEnabled)? scaleK[pos](d.vectors[vectorIndices[pos].k]) : 1;
+        var c = d3.rgb(scaleRed[pos](d.vectors[vectorIndices[pos].r]) * k,
+                        scaleGreen[pos](d.vectors[vectorIndices[pos].g]) * k,
+                        scaleBlue[pos](d.vectors[vectorIndices[pos].b]) * k).toString();
         
         context.fillStyle = c;
         context.fill();
@@ -475,7 +584,7 @@ function renderData() {
 
     var selectedIndex;
 
-    infoSVG.on('mousemove', function() {
+    infoSVG[pos].on('mousemove', function() {
         const mouse = d3.mouse(this);
        
 
@@ -484,29 +593,29 @@ function renderData() {
         selectedIndex = colorToDataIndex[color];
 
         // console.log(color, selectedIndex, data[selectedIndex]);
-        let hidden = (!selectedIndex || Math.abs(data[selectedIndex].originX - mouse[0]) > 5 
-                                    || Math.abs(data[selectedIndex].originY - mouse[1]) > 5);
+        let hidden = (!selectedIndex || Math.abs(data[pos][selectedIndex].originX - mouse[0]) > 5 
+                                    || Math.abs(data[pos][selectedIndex].originY - mouse[1]) > 5);
 
-        highlight.classed('hidden', hidden);
+        highlight[pos].classed('hidden', hidden);
         
-        infoSVG.style('cursor', 'default');
+        infoSVG[pos].style('cursor', 'default');
 
         if(!hidden) {
-            highlight.attr('cx', data[selectedIndex].originX)
-                .attr('cy', data[selectedIndex].originY);
-            highlight.attr('r', scaleSize(data[selectedIndex].vectors[vectorIndices.size]) + 3);
-            infoSVG.style('cursor', 'pointer');
+            highlight[pos].attr('cx', data[pos][selectedIndex].originX)
+                .attr('cy', data[pos][selectedIndex].originY);
+            highlight[pos].attr('r', scaleSize[pos](data[pos][selectedIndex].vectors[vectorIndices[pos].size]) + 3);
+            infoSVG[pos].style('cursor', 'pointer');
         }
     });
 
-    infoSVG.on('click', function() {
+    infoSVG[pos].on('click', function() {
 
         if(!selectedIndex) return;
 
-        var d = data[selectedIndex];
+        var d = data[pos][selectedIndex];
 
         if(d.textbox.created == false) {
-            var textbox = infoSVG.append('g')
+            var textbox = infoSVG[pos].append('g')
                                     .attr('id', selectedIndex)
                                     .attr('class', 'textbox')
                                     .style('cursor', 'move');
@@ -625,13 +734,13 @@ function renderData() {
             d.textbox.hidden = false;
         } else if(d.textbox.hidden) {
             d.textbox.hidden =  !d.textbox.hidden;
-            infoSVG.select(".textbox[id='" + selectedIndex + "']").classed('hidden', d.textbox.hidden);
+            infoSVG[pos].select(".textbox[id='" + selectedIndex + "']").classed('hidden', d.textbox.hidden);
         }
     });
 
-    infoSVG.on('mouseout', () => {
-        highlight.classed('hidden', true);
-        infoSVG.style('cursor', 'default');
+    infoSVG[pos].on('mouseout', () => {
+        highlight[pos].classed('hidden', true);
+        infoSVG[pos].style('cursor', 'default');
     });
 }
 
@@ -643,72 +752,58 @@ function getColor(index) {
         .toString();
 }
 
-function redraw() {
-    
-    updateScale();
-    
-    gX.call(xAxis);
-    gY.call(yAxis);
-    
-    renderData();
-    infoSVG.selectAll('*').remove();
-
-    infoSVG.call(zoom.transform, d3.zoomIdentity);
-}
-
 var k = 0;
 
 function addGui() {
     var gui = new dat.GUI({ autoPlace: false });
     var customContainer = $('.gui').append($(gui.domElement));
     var svg = d3.select('svg');
-    
-    gui.add(gui_elements, 'x-axis', data.vectors_metadata).onChange(function(v) {
-        vectorIndices.x = data.vectors_metadata.indexOf(v);
-        redraw();
-    }).setValue(data.vectors_metadata[vectorIndices.x]);
 
-    gui.add(gui_elements, 'y-axis', data.vectors_metadata).onChange(function(v) {
-        vectorIndices.y = data.vectors_metadata.indexOf(v);
-        redraw();
-    }).setValue(data.vectors_metadata[vectorIndices.y]);
+    gui.add(gui_elements, 'x-axis', data[LEFT].vectors_metadata).onChange(function(v) {
+        vectorIndices[LEFT].x = data[LEFT].vectors_metadata.indexOf(v);
+        redraw(LEFT);
+    }).setValue(data[LEFT].vectors_metadata[vectorIndices[LEFT].x]);
 
-    gui.add(gui_elements, 'red', data.vectors_metadata).onChange(function(v) {
-        vectorIndices.r = data.vectors_metadata.indexOf(v);
-        updateColorScale();
-        renderData();
-    }).setValue(data.vectors_metadata[vectorIndices.r]);
+    gui.add(gui_elements, 'y-axis', data[LEFT].vectors_metadata).onChange(function(v) {
+        vectorIndices[LEFT].y = data[LEFT].vectors_metadata.indexOf(v);
+        redraw(LEFT);
+    }).setValue(data[LEFT].vectors_metadata[vectorIndices[LEFT].y]);
 
-    gui.add(gui_elements, 'green', data.vectors_metadata).onChange(function(v) {
-        vectorIndices.g = data.vectors_metadata.indexOf(v);
-        updateColorScale();
-        renderData();
-    }).setValue(data.vectors_metadata[vectorIndices.g]);
+    gui.add(gui_elements, 'red', data[LEFT].vectors_metadata).onChange(function(v) {
+        vectorIndices[LEFT].r = data[LEFT].vectors_metadata.indexOf(v);
+        updateColorScale(LEFT);
+        renderData(LEFT);
+    }).setValue(data[LEFT].vectors_metadata[vectorIndices[LEFT].r]);
 
-    gui.add(gui_elements, 'blue', data.vectors_metadata).onChange(function(v) {
-        vectorIndices.b = data.vectors_metadata.indexOf(v);
-        updateColorScale();
-        renderData();
-    }).setValue(data.vectors_metadata[vectorIndices.b]);
+    gui.add(gui_elements, 'green', data[LEFT].vectors_metadata).onChange(function(v) {
+        vectorIndices[LEFT].g = data[LEFT].vectors_metadata.indexOf(v);
+        updateColorScale(LEFT);
+        renderData(LEFT);
+    }).setValue(data[LEFT].vectors_metadata[vectorIndices[LEFT].g]);
 
-    gui.add(gui_elements, 'size', data.vectors_metadata).onChange(function(v) {
-        vectorIndices.size = data.vectors_metadata.indexOf(v);
-        updateSizeScale();
-        renderData();
-    }).setValue(data.vectors_metadata[vectorIndices.size]);
+    gui.add(gui_elements, 'blue', data[LEFT].vectors_metadata).onChange(function(v) {
+        vectorIndices[LEFT].b = data[LEFT].vectors_metadata.indexOf(v);
+        updateColorScale(LEFT);
+        renderData(LEFT);
+    }).setValue(data[LEFT].vectors_metadata[vectorIndices[LEFT].b]);
+
+    gui.add(gui_elements, 'size', data[LEFT].vectors_metadata).onChange(function(v) {
+        vectorIndices[LEFT].size = data[LEFT].vectors_metadata.indexOf(v);
+        updateSizeScale(LEFT);
+        renderData(LEFT);
+    }).setValue(data[LEFT].vectors_metadata[vectorIndices[LEFT].size]);
 
     gui.add(gui_elements, 'enable k').onChange(function(v) {
         isKEnabled = v;
-        console.log(v);
-        renderData();
+        renderData(LEFT);
     });
 
-    gui.add(gui_elements, 'k', data.vectors_metadata).onChange(function(v) {
-        vectorIndices.k = data.vectors_metadata.indexOf(v);
-        updateKValueScale();
-        renderData();
-    }).setValue(data.vectors_metadata[vectorIndices.k]);
+    gui.add(gui_elements, 'k', data[LEFT].vectors_metadata).onChange(function(v) {
+        vectorIndices[LEFT].k = data[LEFT].vectors_metadata.indexOf(v);
+        updateKValueScale(LEFT);
+        renderData(LEFT);
+    }).setValue(data[LEFT].vectors_metadata[vectorIndices[LEFT].k]);
 
-
+    $('.dg .c select').width('100%');
     //gui.add(gui_elements, 'redraw');
 }
