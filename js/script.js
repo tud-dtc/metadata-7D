@@ -102,9 +102,7 @@ function load() {
         .attr('x', (width - w) * 0.5)
         .attr('y', (height - h) * 0.5);
 
-
-
-    progress = g.append('rect')
+   progress = g.append('rect')
                 .attr('rx', 10)
                 .attr('ry', 10)
                 .attr('fill', d3.rgb(0, 200, 190))
@@ -125,67 +123,29 @@ function load() {
     load_data(data_folder[0] + files.docs_metadata, function(e, i) {
         
         if (typeof i === 'string') {
-            set_docs_metadata(i, LEFT);
+            set_docs_metadata(i);
 
-            load_data(data_folder[0] + files.vectors, function(e, i) {
+            load_data(data_folder[0] + files.vectors_metadata, function(e, i) {
         
                 if (typeof i === 'string') {
-                    set_vectors(i, LEFT);
+                    set_vectors_metadata(i);
 
-                    load_data(data_folder[0] + files.vectors_metadata, function(e, i) {
+                    load_data(data_folder[0] + files.vectors, function(e, i) {
         
                         if (typeof i === 'string') {
-                            set_vectors_metadata(i, LEFT);
-
+                            set_vectors(i);
                         } else {
-                            console.log('Unable to load a file ' + files.vectors_metadata)
+                            console.log('Unable to load a file ' + files.vectors)
                         }
                     });
-
                 } else {
-                    console.log('Unable to load a file ' + files.vectors)
+                    console.log('Unable to load a file ' + files.vectors_metadata)
                 }
             });
-
-            
-
         } else {
             console.log('Unable to load a file ' + files.docs_metadata)
         }
     });
-
-    load_data(data_folder[1] + files.docs_metadata, function(e, i) {
-        
-        if (typeof i === 'string') {
-            set_docs_metadata(i, RIGHT);
-
-            load_data(data_folder[1] + files.vectors, function(e, i) {
-
-                if (typeof i === 'string') {
-                    set_vectors(i, RIGHT);
-
-                    load_data(data_folder[1] + files.vectors_metadata, function(e, i) {
-        
-                        if (typeof i === 'string') {
-                            set_vectors_metadata(i, RIGHT);
-
-                        } else {
-                            console.log('Unable to load a file ' + files.vectors_metadata)
-                        }
-                    });
-
-                } else {
-                    console.log('Unable to load a file ' + files.vectors)
-                }
-            });
-
-            
-
-        } else {
-            console.log('Unable to load a file ' + files.docs_metadata)
-        }
-    });
-    
 };
 
 function load_data(e, t, data) {
@@ -214,51 +174,60 @@ function load_data(e, t, data) {
     })
 };
 
-function set_docs_metadata(text, pos) {
+function set_docs_metadata(text) {
     var rows = text.split(/\r?\n/);
+    data[RIGHT].vectors_metadata = rows.slice();
 
-    data[pos] = rows.map(function(t, i) {
+    rows.shift();
+    data[LEFT] = rows.map(function(t, i) {
         return {idx:i, text:t, vectors:[]};
     });
-
-    // rows.splice(0, 0, 'Entire Corpus');
-    // data[RIGHT].vectors_metadata = rows;
-
+    
     progress.transition().duration(1000).attr('width', function() {
         return progressBarWidth * 0.33;
     });
 }
 
-function set_vectors(text, pos) {
+function set_vectors(text) {
     var rows = d3.tsvParseRows(text);
-    var firstIndex = 0;
-    
+
     rows.map(function(v, i) {
-        if(i < data[pos].length) 
-            data[pos][i].vectors = v.slice(firstIndex, v.length).map(function(d) { return +d;} );
+        if(i > 0 && i < data[LEFT].length) {
+            data[LEFT][i - 1].vectors = v.map(function(d) { return +d;} );
+        }
+
+        if(i < data[RIGHT].vectors_metadata.length) {
+            data[RIGHT].forEach(function(d, j) {
+                data[RIGHT][j].vectors[i] = +v[j + 1];
+            });
+        }
     });
-
-    progress.transition().duration(1000).attr('width', function() {
-        return progressBarWidth * 0.66;
-    });
-}
-
-function set_vectors_metadata(text, pos) {
-    var rows = text.split(/\r?\n/);
-
-    if(rows.length > data[pos][0].vectors.length) rows = rows.slice(0, data[pos][0].vectors.length);
-
-    data[pos].vectors_metadata = rows;
 
     progress.transition().duration(1000).attr('width', function() {
         return progressBarWidth;
     }).on('end', function() {
         d3.select('.progress').remove();
-        
-        if(pos == RIGHT) {
-            init();
-            addGui();
-        }
+            
+        init();
+        addGui();
+    });
+}
+
+function set_vectors_metadata(text) {
+    var rows = text.split(/\r?\n/);
+
+    data[LEFT].vectors_metadata = rows.slice();
+
+    rows.shift();
+    var metadata = data[RIGHT].vectors_metadata;
+    data[RIGHT] = rows.map(function(t, i) {
+        return {idx:i, text:t, vectors:[]};
+    });
+
+    data[RIGHT].vectors_metadata = metadata;
+
+    progress.transition().duration(1000).attr('width', function() {
+        return progressBarWidth * 0.66;
     });
 }
 
