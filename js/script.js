@@ -17,7 +17,6 @@ var gui_elements = {
     'size': [],
     'enable k': false,
     'k': []
-
 };
 var k = 0;
 var gui;
@@ -55,7 +54,7 @@ var svgClientNode;
 var isFF, isMSIE;
 var progressBarWidth;
 var progress;
-var isKEnabled = false;
+var isKEnabled = [false, false];
 
 var chart = [,];
 var highlight = [,];
@@ -552,6 +551,9 @@ function updateScale(pos) {
 // drawing on canvas and interacting with data points
 // based on: https://bl.ocks.org/veltman/f539d97e922b918d47e2b2d1a8bcd2dd
 function renderData(pos) {
+
+    if(typeof scaleSize[pos] == 'undefined') return;
+
     var context = canvas[pos].node().getContext('2d');
     var offscreenContext = offscreen[pos].node().getContext('2d');
 
@@ -577,7 +579,7 @@ function renderData(pos) {
         
         //k = [0, 1]
         //checkbox ui for deciding to apply k factor
-        var k = (isKEnabled)? scaleK[pos](d.vectors[vectorIndices[pos].k]) : 1;
+        var k = (isKEnabled[pos])? scaleK[pos](d.vectors[vectorIndices[pos].k]) : 1;
         var c = d3.rgb(scaleRed[pos](d.vectors[vectorIndices[pos].r]) * k,
                         scaleGreen[pos](d.vectors[vectorIndices[pos].g]) * k,
                         scaleBlue[pos](d.vectors[vectorIndices[pos].b]) * k).toString();
@@ -659,10 +661,9 @@ function renderData(pos) {
                 redraw(posToUpdate);
                 updateAxesTitle(posToUpdate);
 
-                if(posToUpdate == LEFT) {
-                    gui.yAxis.setValue(data[LEFT].vectors_metadata[vectorIndices[LEFT].y]);
-                    gui.red.setValue(data[LEFT].vectors_metadata[vectorIndices[LEFT].r]);
-                }
+                gui.yAxis[posToUpdate].setValue(data[posToUpdate].vectors_metadata[vectorIndices[posToUpdate].y]);
+                gui.red[posToUpdate].setValue(data[posToUpdate].vectors_metadata[vectorIndices[posToUpdate].r]);
+                
             });
 
             var bbox = text.node().getBBox();
@@ -789,40 +790,77 @@ function getColor(index) {
 
 function addGui() {
     gui = new dat.GUI({ autoPlace: false });
+    var left = gui.addFolder('Left Chart');
+    var right = gui.addFolder('Right Chart');
     var customContainer = $('.gui').append($(gui.domElement));
-    var svg = d3.select('svg');
 
-    gui.xAxis = gui.add(gui_elements, 'x-axis', data[LEFT].vectors_metadata).onChange(function(v) {
+    gui.xAxis = [];
+    gui.xAxis[LEFT] = left.add(gui_elements, 'x-axis', data[LEFT].vectors_metadata).onChange(function(v) {
         vectorIndices[LEFT].x = data[LEFT].vectors_metadata.indexOf(v);
         updateAxesTitle(LEFT);
         redraw(LEFT);
     }).setValue(data[LEFT].vectors_metadata[vectorIndices[LEFT].x]);
 
-    gui.yAxis = gui.add(gui_elements, 'y-axis', data[LEFT].vectors_metadata).onChange(function(v) {
+    gui.xAxis[RIGHT] = right.add(gui_elements, 'x-axis', data[RIGHT].vectors_metadata).onChange(function(v) {
+        vectorIndices[RIGHT].x = data[RIGHT].vectors_metadata.indexOf(v);
+        updateAxesTitle(RIGHT);
+        redraw(RIGHT);
+    }).setValue(data[RIGHT].vectors_metadata[vectorIndices[RIGHT].x]);
+
+    gui.yAxis = [];
+    gui.yAxis[LEFT] = left.add(gui_elements, 'y-axis', data[LEFT].vectors_metadata).onChange(function(v) {
         vectorIndices[LEFT].y = data[LEFT].vectors_metadata.indexOf(v);
         updateAxesTitle(LEFT);
         redraw(LEFT);
     }).setValue(data[LEFT].vectors_metadata[vectorIndices[LEFT].y]);
 
-    gui.red = gui.add(gui_elements, 'red', data[LEFT].vectors_metadata).onChange(function(v) {
+    gui.yAxis[RIGHT] = right.add(gui_elements, 'y-axis', data[RIGHT].vectors_metadata).onChange(function(v) {
+        vectorIndices[RIGHT].y = data[RIGHT].vectors_metadata.indexOf(v);
+        updateAxesTitle(RIGHT);
+        redraw(RIGHT);
+    }).setValue(data[RIGHT].vectors_metadata[vectorIndices[RIGHT].y]);
+
+    gui.red = [];
+    gui.red[LEFT] = left.add(gui_elements, 'red', data[LEFT].vectors_metadata).onChange(function(v) {
         vectorIndices[LEFT].r = data[LEFT].vectors_metadata.indexOf(v);
         updateColorScale(LEFT);
         renderData(LEFT);
     }).setValue(data[LEFT].vectors_metadata[vectorIndices[LEFT].r]);
 
-    gui.green = gui.add(gui_elements, 'green', data[LEFT].vectors_metadata).onChange(function(v) {
+    gui.red[RIGHT] = right.add(gui_elements, 'red', data[RIGHT].vectors_metadata).onChange(function(v) {
+        vectorIndices[RIGHT].r = data[RIGHT].vectors_metadata.indexOf(v);
+        updateColorScale(RIGHT);
+        renderData(RIGHT);
+    }).setValue(data[RIGHT].vectors_metadata[vectorIndices[RIGHT].r]);
+
+    gui.green = [];
+    gui.green[LEFT] = left.add(gui_elements, 'green', data[LEFT].vectors_metadata).onChange(function(v) {
         vectorIndices[LEFT].g = data[LEFT].vectors_metadata.indexOf(v);
         updateColorScale(LEFT);
         renderData(LEFT);
     }).setValue(data[LEFT].vectors_metadata[vectorIndices[LEFT].g]);
 
-    gui.blue = gui.add(gui_elements, 'blue', data[LEFT].vectors_metadata).onChange(function(v) {
+    gui.green[RIGHT] = right.add(gui_elements, 'green', data[RIGHT].vectors_metadata).onChange(function(v) {
+        vectorIndices[RIGHT].g = data[RIGHT].vectors_metadata.indexOf(v);
+        updateColorScale(RIGHT);
+        renderData(RIGHT);
+    }).setValue(data[RIGHT].vectors_metadata[vectorIndices[RIGHT].g]);
+
+    gui.blue = [];
+    gui.blue[LEFT] = left.add(gui_elements, 'blue', data[LEFT].vectors_metadata).onChange(function(v) {
         vectorIndices[LEFT].b = data[LEFT].vectors_metadata.indexOf(v);
         updateColorScale(LEFT);
         renderData(LEFT);
     }).setValue(data[LEFT].vectors_metadata[vectorIndices[LEFT].b]);
 
-    gui.size = gui.add(gui_elements, 'size', data[LEFT].vectors_metadata).onChange(function(v) {
+    gui.blue[RIGHT] = right.add(gui_elements, 'blue', data[RIGHT].vectors_metadata).onChange(function(v) {
+        vectorIndices[RIGHT].b = data[RIGHT].vectors_metadata.indexOf(v);
+        updateColorScale(RIGHT);
+        renderData(RIGHT);
+    }).setValue(data[RIGHT].vectors_metadata[vectorIndices[RIGHT].b]);
+
+    gui.size = [];
+    gui.size[LEFT] = left.add(gui_elements, 'size', data[LEFT].vectors_metadata).onChange(function(v) {
         vectorIndices[LEFT].size = data[LEFT].vectors_metadata.indexOf(v);
         updateSizeScale(LEFT);
         updateLegend(LEFT);
@@ -830,16 +868,37 @@ function addGui() {
         
     }).setValue(data[LEFT].vectors_metadata[vectorIndices[LEFT].size]);
 
-    gui.kCheckbox = gui.add(gui_elements, 'enable k').onChange(function(v) {
-        isKEnabled = v;
+    gui.size[RIGHT] = right.add(gui_elements, 'size', data[RIGHT].vectors_metadata).onChange(function(v) {
+        vectorIndices[RIGHT].size = data[RIGHT].vectors_metadata.indexOf(v);
+        updateSizeScale(RIGHT);
+        updateLegend(RIGHT);
+        renderData(RIGHT);
+        
+    }).setValue(data[RIGHT].vectors_metadata[vectorIndices[RIGHT].size]);
+
+    gui.kCheckbox = [];
+    gui.kCheckbox[LEFT] = left.add(gui_elements, 'enable k').onChange(function(v) {
+        isKEnabled[LEFT] = v;
         renderData(LEFT);
     });
 
-    gui.k = gui.add(gui_elements, 'k', data[LEFT].vectors_metadata).onChange(function(v) {
+    gui.kCheckbox[RIGHT] = right.add(gui_elements, 'enable k').onChange(function(v) {
+        isKEnabled[RIGHT] = v;
+        renderData(RIGHT);
+    });
+
+    gui.k = [];
+    gui.k[LEFT] = left.add(gui_elements, 'k', data[LEFT].vectors_metadata).onChange(function(v) {
         vectorIndices[LEFT].k = data[LEFT].vectors_metadata.indexOf(v);
         updateKValueScale(LEFT);
         renderData(LEFT);
     }).setValue(data[LEFT].vectors_metadata[vectorIndices[LEFT].k]);
+
+    gui.k[RIGHT] = right.add(gui_elements, 'k', data[RIGHT].vectors_metadata).onChange(function(v) {
+        vectorIndices[RIGHT].k = data[RIGHT].vectors_metadata.indexOf(v);
+        updateKValueScale(RIGHT);
+        renderData(RIGHT);
+    }).setValue(data[RIGHT].vectors_metadata[vectorIndices[RIGHT].k]);
 
     $('.dg .c select').width('100%');
     //gui.add(gui_elements, 'redraw');
