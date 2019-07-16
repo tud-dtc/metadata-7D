@@ -78,14 +78,42 @@ var padding = {
         right: 25
     };
 
-function doFilesExist(url) {
-    var http = new XMLHttpRequest();
-    http.open('HEAD', url, false);
-    http.send();
-    return http.status != 404;
+function load(reselected = false, dataType) {
+    checkFiles(reselected, dataType);
+};
+
+function checkFiles(reselected, dataType) {
+    var checked = [];
+
+    for(var i = 0; i < data_folder.length; i++) {
+        var url = data_folder[i] + files.rows;
+        checked[i] = false;
+
+        $.ajax({
+            index: i,
+            url: url,
+            type: 'HEAD',
+            complete: function(xhr, statusText) {
+                if(xhr.status == 200) {
+                    selectedDataType = this.index;
+                } else {
+                    data_type_name_exiting.splice(this.index, 1);
+                }
+
+                checked[this.index] = true;
+
+                var done = true;
+                for(var i = 0; i < checked.length; i++) {
+                    done &= checked[i];
+                }
+
+                if(done) doRestForLoading(reselected, dataType);
+            }
+        });
+    }
 }
 
-function load(reselected = false, dataType) {
+function doRestForLoading(reselected, dataType) {
     var ua = window.navigator.userAgent;
     isFF = (ua.indexOf('Firefox') > 0);
     isMSIE = (ua.indexOf('MSIE ') > 0 || !!navigator.userAgent.match(/Trident.*rv\:11\./));
@@ -103,17 +131,10 @@ function load(reselected = false, dataType) {
     var h = 20;
     progressBarWidth = w;
 
-    for(var i = data_folder.length - 1; i >= 0; i--) {
-        if(doFilesExist(data_folder[i] + files.rows)) {
-            selectedDataType = i;
-        } else {
-            data_type_name_exiting.splice(i, 1);
-        }
-    }
-    
     if(reselected) selectedDataType = dataType;
 
-    d3.select('h1#title').html('Metadata-7D: ' + data_type_name[selectedDataType]);
+    document.title = 'Metadata-7D: ' + data_type_name[selectedDataType];
+    d3.select('h1#title').html(document.title);
 
     var g = svg.append('g')
                 .attr('class', 'progress');
@@ -182,7 +203,7 @@ function load(reselected = false, dataType) {
             console.log('Unable to load a file ' + files.rows)
         }
     });
-};
+}
 
 function load_data(e, t, data) {
     var i, n;
