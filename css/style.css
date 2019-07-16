@@ -70,6 +70,33 @@ svg {
     display:block;
 }
 
+.linkbox ul {
+  display: block;
+  list-style-type: disc;
+  list-style-position: outside;
+  margin: 0;
+  padding: 5px;
+  padding-left: 17px;
+}
+
+.linkbox::-webkit-scrollbar {
+  width: 10px;
+}
+
+.linkbox::-webkit-scrollbar-track {
+  display: none;
+  
+}
+ 
+.linkbox::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 5px;
+}
+
+.linkbox::-webkit-scrollbar-thumb:hover {
+  background: #555; 
+}
+
 .hidden {
     display: none;
 }

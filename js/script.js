@@ -1,14 +1,19 @@
-var data_folder = ['data/', 'data/transposed/']
+var data_folder = ['data/PubD/', 'data/TimeD/']
+var data_type_name = ['PubD', 'TimeD'];
+var data_type_name_exiting = data_type_name.slice();
+let PUBD = 0, TIMED = 1;
 
 var files = {
-        vectors: 'matrix.tsv',
-        vectors_metadata: 'cols.tsv',
-        docs_metadata: 'rows.tsv'
+        matrix: 'matrix.tsv',
+        cols: 'cols.tsv',
+        rows: 'rows.tsv',
+        matrix_link: 'matrixL.tsv'
 };
 
 var data = [{}, {}];
 
 var gui_elements = {
+    'data type': [],
     'x-axis': [],
     'y-axis': [],
     'red': [],
@@ -49,7 +54,9 @@ var canvas = [,];
 var offscreen = [,];
 var zoom = [,];
 
-let colorToDataIndex = {};
+var selectedDataType = TIMED;
+
+var colorToDataIndex = {};
 var svgClientNode;
 var isFF, isMSIE;
 var progressBarWidth;
@@ -71,7 +78,14 @@ var padding = {
         right: 25
     };
 
-function load() {
+function doFilesExist(url) {
+    var http = new XMLHttpRequest();
+    http.open('HEAD', url, false);
+    http.send();
+    return http.status != 404;
+}
+
+function load(reselected = false, dataType) {
     var ua = window.navigator.userAgent;
     isFF = (ua.indexOf('Firefox') > 0);
     isMSIE = (ua.indexOf('MSIE ') > 0 || !!navigator.userAgent.match(/Trident.*rv\:11\./));
@@ -89,6 +103,18 @@ function load() {
     var h = 20;
     progressBarWidth = w;
 
+    for(var i = data_folder.length - 1; i >= 0; i--) {
+        if(doFilesExist(data_folder[i] + files.rows)) {
+            selectedDataType = i;
+        } else {
+            data_type_name_exiting.splice(i, 1);
+        }
+    }
+    
+    if(reselected) selectedDataType = dataType;
+
+    d3.select('h1#title').html('Metadata-7D: ' + data_type_name[selectedDataType]);
+
     var g = svg.append('g')
                 .attr('class', 'progress');
 
@@ -101,7 +127,7 @@ function load() {
         .attr('x', (width - w) * 0.5)
         .attr('y', (height - h) * 0.5);
 
-   progress = g.append('rect')
+    progress = g.append('rect')
                 .attr('rx', 10)
                 .attr('ry', 10)
                 .attr('fill', d3.rgb(0, 200, 190))
@@ -119,30 +145,41 @@ function load() {
         .text('Loading data...');
 
     // use https://github.com/d3/d3-queue later
-    load_data(data_folder[0] + files.docs_metadata, function(e, i) {
+    load_data(data_folder[selectedDataType] + files.rows, function(e, i) {
         
         if (typeof i === 'string') {
-            set_docs_metadata(i);
+            set_rows(i);
 
-            load_data(data_folder[0] + files.vectors_metadata, function(e, i) {
+            load_data(data_folder[selectedDataType] + files.cols, function(e, i) {
         
                 if (typeof i === 'string') {
-                    set_vectors_metadata(i);
+                    set_cols(i);
 
-                    load_data(data_folder[0] + files.vectors, function(e, i) {
+                    load_data(data_folder[selectedDataType] + files.matrix, function(e, i) {
         
                         if (typeof i === 'string') {
-                            set_vectors(i);
+                            set_matrix(i);
+
+                            if(selectedDataType == TIMED) {
+                                load_data(data_folder[selectedDataType] + files.matrix_link, function(e, i) {
+                                    if(typeof i === 'string') {
+                                        set_matrix_link(i);
+                                    } else {
+                                        console.log('Unable to load a file ' + files.matrix_link)
+                                    }
+                                });
+                            }
+
                         } else {
-                            console.log('Unable to load a file ' + files.vectors)
+                            console.log('Unable to load a file ' + files.matrix)
                         }
                     });
                 } else {
-                    console.log('Unable to load a file ' + files.vectors_metadata)
+                    console.log('Unable to load a file ' + files.cols)
                 }
             });
         } else {
-            console.log('Unable to load a file ' + files.docs_metadata)
+            console.log('Unable to load a file ' + files.rows)
         }
     });
 };
@@ -173,11 +210,15 @@ function load_data(e, t, data) {
     })
 };
 
-function set_docs_metadata(text) {
+function set_rows(text) {
     var rows = text.split(/\r?\n/);
+    if(rows[rows.length - 1] == "") rows.pop();
+
     data[RIGHT].vectors_metadata = rows.slice();
 
     rows.shift();
+    rows.shift();
+
     data[LEFT] = rows.map(function(t, i) {
         return {idx:i, text:t, vectors:[]};
     });
@@ -187,17 +228,37 @@ function set_docs_metadata(text) {
     });
 }
 
-function set_vectors(text) {
+function set_cols(text) {
+    var rows = text.split(/\r?\n/);
+
+    data[LEFT].vectors_metadata = rows.slice();
+
+    rows.shift();
+    rows.shift();
+
+    var metadata = data[RIGHT].vectors_metadata;
+    data[RIGHT] = rows.map(function(t, i) {
+        return {idx:i, text:t, vectors:[], vectors_link:[]};
+    });
+
+    data[RIGHT].vectors_metadata = metadata;
+
+    progress.transition().duration(1000).attr('width', function() {
+        return progressBarWidth * 0.66;
+    });
+}
+
+function set_matrix(text) {
     var rows = d3.tsvParseRows(text);
 
     rows.map(function(v, i) {
-        if(i > 0 && i < data[LEFT].length) {
-            data[LEFT][i - 1].vectors = v.map(function(d) { return +d;} );
+        if(i >= 2) {
+            data[LEFT][i - 2].vectors = v.map(function(d) { return +d;} );
         }
 
         if(i < data[RIGHT].vectors_metadata.length) {
             data[RIGHT].forEach(function(d, j) {
-                data[RIGHT][j].vectors[i] = +v[j + 1];
+                data[RIGHT][j].vectors[i] = +v[j + 2];
             });
         }
     });
@@ -206,27 +267,20 @@ function set_vectors(text) {
         return progressBarWidth;
     }).on('end', function() {
         d3.select('.progress').remove();
-            
         init();
         addGui();
     });
 }
 
-function set_vectors_metadata(text) {
-    var rows = text.split(/\r?\n/);
-
-    data[LEFT].vectors_metadata = rows.slice();
-
-    rows.shift();
-    var metadata = data[RIGHT].vectors_metadata;
-    data[RIGHT] = rows.map(function(t, i) {
-        return {idx:i, text:t, vectors:[]};
-    });
-
-    data[RIGHT].vectors_metadata = metadata;
-
-    progress.transition().duration(1000).attr('width', function() {
-        return progressBarWidth * 0.66;
+function set_matrix_link(text) {
+    var rows = d3.tsvParseRows(text);
+    
+    rows.map(function(v, i) {
+        data[RIGHT].forEach(function(d, j) {
+            var link = v[j + 2];
+            if(typeof link == 'undefined') link = "";
+            data[RIGHT][j].vectors_link[i] = link;
+        });
     });
 }
 
@@ -250,22 +304,26 @@ function setChartZoom(pos) {
             var dx = d.originX - newX;
             var dy = d.originY - newY;
 
+            d.x -= dx;
+            d.y -= dy;
+
             if(d.textbox.created) {
                 d.textbox.bbox.x -= dx;
                 d.textbox.bbox.y -= dy;
             }
             
-            d.x -= dx;
-            d.y -= dy;
-
             d.originX = newX;
-            d.originY = newY;
-            //d.textbox = {created: false, hidden: false};
+            d.originY = newY;            
         });
         
         renderData(pos);
         infoSVG[pos].selectAll('.textbox[id]').attr('transform', function() {
             var d = data[pos][this.id];
+            return  'translate(' + [d.x, d.y] + ')';
+        });
+
+        infoSVG[pos].selectAll('g[id^=linkbox]').attr('transform', function() {
+            var d = data[pos][+this.id.substring(8)];
             return  'translate(' + [d.x, d.y] + ')';
         });
     });
@@ -323,12 +381,14 @@ function init() {
 
     canvasArea[LEFT] = d3.select('.container')
                         .append('div')
+                        .attr('id', 'left')
                         .style('left', margin.left + 'px')
                         .style('top', header.offsetHeight + margin.top + 'px')
                         .style('position', 'absolute');
     
     canvasArea[RIGHT] = d3.select('.container')
                         .append('div')
+                        .attr('id', 'right')
                         .style('left', (width + margin.left + padding.left + padding.right) + 'px')
                         .style('top', header.offsetHeight + margin.top + 'px')
                         .style('position', 'absolute');
@@ -381,12 +441,13 @@ function init() {
     }
 
     setChartZoom(LEFT);
+    setChartZoom(RIGHT);
     updateSizeScale(LEFT);
     updateColorScale(LEFT);
     updateKValueScale(LEFT);
     updateLegend(LEFT);
     renderData(LEFT);
-}   
+}
 
 //Text wrapping based on https://bl.ocks.org/mbostock/7555321
 //Later, use https://github.com/vijithassar/d3-textwrap instead because of the license issue
@@ -477,7 +538,6 @@ function updateColorScale(pos) {
                     .range([0, 250]);
 }
 
-
 function updateLegend(pos) {
     var svg = d3.select('svg');
     svg.select('.legendSize').remove();
@@ -545,6 +605,7 @@ function updateScale(pos) {
         d.y = d.originY;
 
         d.textbox = {created: false, hidden: false};
+        d.linkbox = {created: false, hidden: false};
     });
 }
 
@@ -571,6 +632,8 @@ function renderData(pos) {
 
         offscreenContext.fillStyle = color;
 
+        context.strokeStyle = 'black';
+
         context.beginPath();
         offscreenContext.beginPath();
 
@@ -586,6 +649,7 @@ function renderData(pos) {
         
         context.fillStyle = c;
         context.fill();
+        context.stroke();
         offscreenContext.fill();
     });
 
@@ -599,8 +663,9 @@ function renderData(pos) {
         const color = d3.rgb.apply(null, imageData.data).toString();
         selectedIndex = colorToDataIndex[color];
 
-        // console.log(color, selectedIndex, data[selectedIndex]);
-        let hidden = (!selectedIndex || Math.abs(data[pos][selectedIndex].originX - mouse[0]) > 5 
+        //console.log(color, selectedIndex, data[pos][selectedIndex]);
+
+        let hidden = (typeof selectedIndex == 'undefined' || Math.abs(data[pos][selectedIndex].originX - mouse[0]) > 5 
                                     || Math.abs(data[pos][selectedIndex].originY - mouse[1]) > 5);
 
         highlight[pos].classed('hidden', hidden);
@@ -612,34 +677,35 @@ function renderData(pos) {
                 .attr('cy', data[pos][selectedIndex].originY);
             highlight[pos].attr('r', scaleSize[pos](data[pos][selectedIndex].vectors[vectorIndices[pos].size]) + 3);
             infoSVG[pos].style('cursor', 'pointer');
-        }
+        } else selectedIndex = -1;
     });
 
     infoSVG[pos].on('click', function() {
 
-        if(!selectedIndex) return;
+        if(selectedIndex == -1) return;
 
         var d = data[pos][selectedIndex];
         
         if(d.textbox.created == false) {
-            var textbox = infoSVG[pos].append('g')
-                                    .attr('id', selectedIndex)
-                                    .attr('class', 'textbox')
-                                    .style('cursor', 'pointer');
-            
             var textboxMargin = { 
                                     top: 15,
                                     bottom: 10,
                                     left: 10,
                                     right: 25
                                 };
-            
+
+            var textbox = infoSVG[pos].append('g')
+                                    .attr('id', selectedIndex)
+                                    .attr('class', 'textbox')
+                                    .style('cursor', 'pointer');
+
             var text = textbox.append('text')
                 .attr('x', d.originX + textboxMargin.left)
                 .attr('y', d.originY)
                 .style('text-anchor', 'start')
                 .attr('dominant-baseline', 'hanging')
                 .text(function() {
+                    //console.log(d.vectors_link[selectedIndex]);
                     return d.text.trim();
                 }).call(wrap, 300);
 
@@ -651,8 +717,8 @@ function renderData(pos) {
             })
             .on('click', function() {
                 var posToUpdate = (pos == LEFT)? RIGHT : LEFT;
-                vectorIndices[posToUpdate].y = d.idx + 1; //+1 because 'All Topics' or 'Entire Corpus'
-                vectorIndices[posToUpdate].r = d.idx + 1; //+1 because 'All Topics' or 'Entire Corpus'
+                vectorIndices[posToUpdate].y = d.idx + 2; //+1 because 'All Topics' or 'Entire Corpus'
+                vectorIndices[posToUpdate].r = d.idx + 2; //+1 because 'All Topics' or 'Entire Corpus'
                 setChartZoom(posToUpdate);
                 updateSizeScale(posToUpdate);
                 updateColorScale(posToUpdate);
@@ -692,9 +758,69 @@ function renderData(pos) {
                 .attr('x2', d.textbox.bbox.x)
                 .attr('y2', d.textbox.bbox.y + d.textbox.bbox.height);
 
+            var linkbox = null;
+            if(selectedDataType == TIMED && pos == RIGHT) {
+
+                var listX = d.vectors_link[vectorIndices[RIGHT].x];
+                var listY = d.vectors_link[vectorIndices[RIGHT].y];
+                
+                var list = listX + " " + listY;
+                
+                if(list != " ") {
+                    linkbox = infoSVG[pos].append('g')
+                                        .attr('id', 'linkbox-' + selectedIndex)
+                                        .style('cursor', 'pointer');
+
+                    var fo = linkbox.append('foreignObject')
+                        .attr('x', d.originX)
+                        .attr('y', d.originY)
+                        .attr('width', '160')
+                        .attr('height', '150')
+                        .on('mouseover', function() { infoSVG[pos].on('.zoom', null); })
+                        .on('mouseout', function() { setChartZoom(pos);});
+                    
+                    var div = fo.append('xhtml:div')
+                            .attr('class', 'linkbox')
+                            .style('font-size', '11px')
+                            .style('overflow-y', 'scroll')
+                            .style('word-break', 'break-all')
+                            .style('word-wrap', 'break-word')
+                            .style('background-color', d3.rgb(200, 200, 200, 0.9))
+                            .style('height', '100%')
+                            .html(function() {
+                                list = list.split(' ');
+                                var html = "<ul>";
+                                for(var i = 0; i < list.length;) {
+                                    if(list[i] == "") {
+                                        i++;
+                                    } else {
+
+                                        html += "<li><span><a href='https://en.wikipedia.org/wiki/" + list[i] 
+                                        + "' target=\'_blank\'>" + list[i] 
+                                        + "(" + list[i + 1] + ")</a></span></li>" 
+                                        i += 2;
+                                    }
+                                }
+                                html += "</ul>"
+
+                                return html;
+                            });
+
+                    d.linkbox.created = true;
+                }
+            }
+
             var closeButton = textbox.append('g').on('click', function() {
-                        d.textbox.hidden =  !d.textbox.hidden;
+                        d.textbox.hidden = !d.textbox.hidden;
+                        
                         textbox.classed('hidden', d.textbox.hidden);
+
+                        if(d.linkbox.created) {
+                            d.linkbox.hidden = !d.linkbox.hidden;
+                            linkbox.classed('hidden', d.linkbox.hidden);
+                        }
+
+                        d3.event.stopPropagation();
                     });;
 
             let buttonRadius = 8;
@@ -746,11 +872,18 @@ function renderData(pos) {
 
                     d.textbox.bbox.x += d3.event.dx;
                     d.textbox.bbox.y += d3.event.dy;
-                    
+
                     d.x += d3.event.dx;
                     d.y += d3.event.dy;
 
                     d3.select(this).attr("transform", "translate(" + (d.x) + "," + (d.y) + ")");
+                    //console.log(d.linkbox.created);
+                    if(d.linkbox.created) {
+                        var id = d3.select(this).attr('id')
+                        //console.log(id);
+                        infoSVG[pos].select("g[id='linkbox-" + id + "']").attr("transform", "translate(" + (d.x) + "," + (d.y) + ")");
+                        //linkbox.select('ul').attr("transform", "translate(" + (d.x) + "," + (d.y) + ")");
+                    }
 
                     d3.select(this).select('line')
                                     .attr("transform", "translate(" + (-d.x) + "," + (-d.y) + ")")
@@ -769,9 +902,14 @@ function renderData(pos) {
             d.textbox.created = true;
             d.textbox.hidden = false;
         } else if(d.textbox.hidden) {
-            d.textbox.hidden =  !d.textbox.hidden;
+            d.textbox.hidden = !d.textbox.hidden;
             infoSVG[pos].select(".textbox[id='" + selectedIndex + "']").classed('hidden', d.textbox.hidden);
-        }
+
+            if(d.linkbox.created) {
+                d.linkbox.hidden = !d.linkbox.hidden;
+                infoSVG[pos].select("g[id='linkbox-" + selectedIndex + "']").classed('hidden', d.linkbox.hidden);
+            }
+       }
     });
 
     infoSVG[pos].on('mouseout', () => {
@@ -793,6 +931,28 @@ function addGui() {
     var left = gui.addFolder('Left Chart');
     var right = gui.addFolder('Right Chart');
     var customContainer = $('.gui').append($(gui.domElement));
+    var addingGuiFinished = false;
+
+    gui.add(gui_elements, 'data type', data_type_name_exiting).onChange(function(v) {
+        if(addingGuiFinished == false) return;
+
+        d3.select('svg').selectAll('*').remove();
+        d3.selectAll('.container div').remove();
+        canvas = [,];
+        offscreen = [,];
+        zoom = [,];
+        colorToDataIndex = {};
+        isKEnabled = [false, false];
+        chart = [,];
+        highlight = [,];
+        infoSVG = [,];
+        
+        d3.select('.gui').html('');
+
+        var index = data_type_name.indexOf(v);
+        load(true, index);
+
+    }).setValue(data_type_name[selectedDataType]);
 
     gui.xAxis = [];
     gui.xAxis[LEFT] = left.add(gui_elements, 'x-axis', data[LEFT].vectors_metadata).onChange(function(v) {
@@ -900,6 +1060,7 @@ function addGui() {
         renderData(RIGHT);
     }).setValue(data[RIGHT].vectors_metadata[vectorIndices[RIGHT].k]);
 
-    $('.dg .c select').width('100%');
+    $('.dg .c select').width((isFF)? '75%': '100%');
+    addingGuiFinished = true;
     //gui.add(gui_elements, 'redraw');
 }
