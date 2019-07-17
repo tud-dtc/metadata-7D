@@ -7,7 +7,8 @@ var files = {
         matrix: 'matrix.tsv',
         cols: 'cols.tsv',
         rows: 'rows.tsv',
-        matrix_link: 'matrixL.tsv'
+        matrix_link: 'matrixL.tsv',
+        config: 'config.json'
 };
 
 var data = [{}, {}];
@@ -43,7 +44,7 @@ var colorValues =[{r: [], g: [], b: []},
 var vectorIndices = [{x: 0, y: 1, r: 1, g: 0, b: 0, size: 0, k: 0},
                     {x: 0, y: 1, r: 1, g: 0, b: 0, size: 0, k: 0}];
 
-
+var jsonCachePath = "";
 var scaleX = [,];
 var scaleY = [,];
 var xAxis = [,];
@@ -56,6 +57,7 @@ var zoom = [,];
 
 var selectedDataType = TIMED;
 
+var selectedIndex;
 var colorToDataIndex = {};
 var svgClientNode;
 var isFF, isMSIE;
@@ -166,6 +168,15 @@ function doRestForLoading(reselected, dataType) {
         .text('Loading data...');
 
     // use https://github.com/d3/d3-queue later
+    load_data('data/' + files.config, function(e, i) {
+        if(typeof i === 'string') {
+            var config = JSON.parse(i);
+            jsonCachePath = config.json_cache_path;
+        } else {
+            console.log('Unable to load a file ' + files.config);            
+        }
+    });
+
     load_data(data_folder[selectedDataType] + files.rows, function(e, i) {
         
         if (typeof i === 'string') {
@@ -181,16 +192,13 @@ function doRestForLoading(reselected, dataType) {
                         if (typeof i === 'string') {
                             set_matrix(i);
 
-                            if(selectedDataType == TIMED) {
-                                load_data(data_folder[selectedDataType] + files.matrix_link, function(e, i) {
-                                    if(typeof i === 'string') {
-                                        set_matrix_link(i);
-                                    } else {
-                                        console.log('Unable to load a file ' + files.matrix_link)
-                                    }
-                                });
-                            }
-
+                            load_data(data_folder[selectedDataType] + files.matrix_link, function(e, i) {
+                                if(typeof i === 'string') {
+                                    set_matrix_link(i);
+                                } else {
+                                    console.log('Unable to load a file ' + files.matrix_link)
+                                }
+                            });
                         } else {
                             console.log('Unable to load a file ' + files.matrix)
                         }
@@ -674,8 +682,6 @@ function renderData(pos) {
         offscreenContext.fill();
     });
 
-    var selectedIndex;
-
     infoSVG[pos].on('mousemove', function() {
         const mouse = d3.mouse(this);
        
@@ -702,8 +708,7 @@ function renderData(pos) {
     });
 
     infoSVG[pos].on('click', function() {
-
-        if(selectedIndex == -1) return;
+        if(selectedIndex == -1 || typeof selectedIndex == 'undefined') return;
 
         var d = data[pos][selectedIndex];
         
@@ -780,12 +785,16 @@ function renderData(pos) {
                 .attr('y2', d.textbox.bbox.y + d.textbox.bbox.height);
 
             var linkbox = null;
-            if(selectedDataType == TIMED && pos == RIGHT) {
+            if(pos == RIGHT) {
+                var width = (d.textbox.bbox.width > 160)? d.textbox.bbox.width : 160;
 
                 var listX = d.vectors_link[vectorIndices[RIGHT].x];
                 var listY = d.vectors_link[vectorIndices[RIGHT].y];
                 
-                var list = listX + " " + listY;
+                var list = "";
+                if(typeof listX != 'undefined') list = listX;
+                list += " ";
+                if(typeof listY != 'undefined') list += listY;
                 
                 if(list != " ") {
                     linkbox = infoSVG[pos].append('g')
@@ -795,11 +804,16 @@ function renderData(pos) {
                     var fo = linkbox.append('foreignObject')
                         .attr('x', d.originX)
                         .attr('y', d.originY)
-                        .attr('width', '160')
+                        .attr('width', width)
                         .attr('height', '150')
                         .on('mouseover', function() { infoSVG[pos].on('.zoom', null); })
                         .on('mouseout', function() { setChartZoom(pos);});
                     
+                    var URLFormat = "";
+
+                    if(selectedDataType == PUBD) URLFormat = jsonCachePath;
+                    else if(selectedDataType == TIMED) URLFormat = 'https://en.wikipedia.org/wiki/';
+
                     var div = fo.append('xhtml:div')
                             .attr('class', 'linkbox')
                             .style('font-size', '11px')
@@ -815,8 +829,8 @@ function renderData(pos) {
                                     if(list[i] == "") {
                                         i++;
                                     } else {
-
-                                        html += "<li><span><a href='https://en.wikipedia.org/wiki/" + list[i] 
+                                        
+                                        html += "<li><span><a href='" + URLFormat + list[i] 
                                         + "' target=\'_blank\'>" + list[i] 
                                         + "(" + list[i + 1] + ")</a></span></li>" 
                                         i += 2;
@@ -969,6 +983,8 @@ function addGui() {
         infoSVG = [,];
         
         d3.select('.gui').html('');
+        vectorIndices = [{x: 0, y: 1, r: 1, g: 0, b: 0, size: 0, k: 0},
+                    {x: 0, y: 1, r: 1, g: 0, b: 0, size: 0, k: 0}];
 
         var index = data_type_name.indexOf(v);
         load(true, index);
