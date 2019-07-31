@@ -1,7 +1,8 @@
-var data_folder = ['data/PubD/', 'data/TimeD/']
-var data_type_name = ['PubD', 'TimeD'];
+var data_folder = ['data/PubD/', 'data/TimeD/', 'data/TranslateD/']
+var data_type_name = ['PubD', 'TimeD', 'TranslateD'];
 var data_type_name_exiting = data_type_name.slice();
-let PUBD = 0, TIMED = 1;
+let PUBD = 0, TIMED = 1, TRANSLATED = 2;
+var selectedDataType = PUBD;
 
 var files = {
         matrix: 'matrix.tsv',
@@ -44,7 +45,7 @@ var colorValues =[{r: [], g: [], b: []},
 var vectorIndices = [{x: 0, y: 1, r: 1, g: 0, b: 0, size: 0, k: 0},
                     {x: 0, y: 1, r: 1, g: 0, b: 0, size: 0, k: 0}];
 
-var jsonCachePath = "";
+var linkPath;
 var scaleX = [,];
 var scaleY = [,];
 var xAxis = [,];
@@ -54,8 +55,6 @@ var gY = [,];
 var canvas = [,];
 var offscreen = [,];
 var zoom = [,];
-
-var selectedDataType = TIMED;
 
 var selectedIndex;
 var colorToDataIndex = {};
@@ -97,9 +96,11 @@ function checkFiles(reselected, dataType) {
             type: 'HEAD',
             complete: function(xhr, statusText) {
                 if(xhr.status == 200) {
-                    selectedDataType = this.index;
+                    if(selectedDataType == -1) selectedDataType = this.index;
                 } else {
                     data_type_name_exiting.splice(this.index, 1);
+                    if(this.index == selectedDataType)
+                        selectedDataType = -1;
                 }
 
                 checked[this.index] = true;
@@ -171,7 +172,7 @@ function doRestForLoading(reselected, dataType) {
     load_data('data/' + files.config, function(e, i) {
         if(typeof i === 'string') {
             var config = JSON.parse(i);
-            jsonCachePath = config.json_cache_path;
+            linkPath = config.link_path;
         } else {
             console.log('Unable to load a file ' + files.config);            
         }
@@ -815,11 +816,8 @@ function renderData(pos) {
                     .on('mouseover', function() { infoSVG[pos].on('.zoom', null); })
                     .on('mouseout', function() { setChartZoom(pos);});
                 
-                var URLFormat = "";
-
-                if(selectedDataType == PUBD) URLFormat = jsonCachePath;
-                else if(selectedDataType == TIMED) URLFormat = 'https://en.wikipedia.org/wiki/';
-
+                var URLFormat = linkPath[data_type_name[selectedDataType]];
+                
                 var div = fo.append('xhtml:div')
                         .attr('class', 'linkbox')
                         .style('font-size', '11px')
