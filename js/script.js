@@ -249,7 +249,7 @@ function set_rows(text) {
     rows.shift();
 
     data[LEFT] = rows.map(function(t, i) {
-        return {idx:i, text:t, vectors:[]};
+        return {idx:i, text:t, vectors:[], vectors_link:[]};
     });
     
     progress.transition().duration(1000).attr('width', function() {
@@ -305,6 +305,10 @@ function set_matrix_link(text) {
     var rows = d3.tsvParseRows(text);
     
     rows.map(function(v, i) {
+        if(i >= 2) {
+            data[LEFT][i - 2].vectors_link = v.map(function(d) { return d;} );
+        }
+
         data[RIGHT].forEach(function(d, j) {
             var link = v[j + 2];
             if(typeof link == 'undefined') link = "";
@@ -770,6 +774,7 @@ function renderData(pos) {
             d.x = d.textbox.bbox.x;
             d.y = d.textbox.bbox.y;
 
+            if(d.textbox.bbox.width < 160) d.textbox.bbox.width = 160;
             textbox.append('rect')
                 .attr('x', d.textbox.bbox.x)
                 .attr('y', d.textbox.bbox.y)
@@ -785,64 +790,64 @@ function renderData(pos) {
                 .attr('y2', d.textbox.bbox.y + d.textbox.bbox.height);
 
             var linkbox = null;
-            if(pos == RIGHT) {
-                var width = (d.textbox.bbox.width > 160)? d.textbox.bbox.width : 160;
+            
+            var width = (d.textbox.bbox.width > 160)? d.textbox.bbox.width : 160;
 
-                var listX = d.vectors_link[vectorIndices[RIGHT].x];
-                var listY = d.vectors_link[vectorIndices[RIGHT].y];
+            var listX = d.vectors_link[vectorIndices[pos].x];
+            var listY = d.vectors_link[vectorIndices[pos].y];
+            
+            var list = "";
+            if(typeof listX != 'undefined') list = listX.trim();
+            list += " ";
+            if(typeof listY != 'undefined') list += listY.trim();
+            list = list.trim();
+
+            if(list != "") {
+                linkbox = infoSVG[pos].append('g')
+                                    .attr('id', 'linkbox-' + selectedIndex)
+                                    .style('cursor', 'pointer');
+
+                var fo = linkbox.append('foreignObject')
+                    .attr('x', d.originX)
+                    .attr('y', d.originY)
+                    .attr('width', width)
+                    .attr('height', '150')
+                    .on('mouseover', function() { infoSVG[pos].on('.zoom', null); })
+                    .on('mouseout', function() { setChartZoom(pos);});
                 
-                var list = "";
-                if(typeof listX != 'undefined') list = listX;
-                list += " ";
-                if(typeof listY != 'undefined') list += listY;
-                
-                if(list != " ") {
-                    linkbox = infoSVG[pos].append('g')
-                                        .attr('id', 'linkbox-' + selectedIndex)
-                                        .style('cursor', 'pointer');
+                var URLFormat = "";
 
-                    var fo = linkbox.append('foreignObject')
-                        .attr('x', d.originX)
-                        .attr('y', d.originY)
-                        .attr('width', width)
-                        .attr('height', '150')
-                        .on('mouseover', function() { infoSVG[pos].on('.zoom', null); })
-                        .on('mouseout', function() { setChartZoom(pos);});
-                    
-                    var URLFormat = "";
+                if(selectedDataType == PUBD) URLFormat = jsonCachePath;
+                else if(selectedDataType == TIMED) URLFormat = 'https://en.wikipedia.org/wiki/';
 
-                    if(selectedDataType == PUBD) URLFormat = jsonCachePath;
-                    else if(selectedDataType == TIMED) URLFormat = 'https://en.wikipedia.org/wiki/';
-
-                    var div = fo.append('xhtml:div')
-                            .attr('class', 'linkbox')
-                            .style('font-size', '11px')
-                            .style('overflow-y', 'scroll')
-                            .style('word-break', 'break-all')
-                            .style('word-wrap', 'break-word')
-                            .style('background-color', d3.rgb(200, 200, 200, 0.9))
-                            .style('height', '100%')
-                            .html(function() {
-                                list = list.split(' ');
-                                var html = "<ul>";
-                                for(var i = 0; i < list.length;) {
-                                    if(list[i] == "") {
-                                        i++;
-                                    } else {
-                                        
-                                        html += "<li><span><a href='" + URLFormat + list[i] 
-                                        + "' target=\'_blank\'>" + list[i] 
-                                        + "(" + list[i + 1] + ")</a></span></li>" 
-                                        i += 2;
-                                    }
+                var div = fo.append('xhtml:div')
+                        .attr('class', 'linkbox')
+                        .style('font-size', '11px')
+                        .style('overflow-y', 'scroll')
+                        .style('word-break', 'break-all')
+                        .style('word-wrap', 'break-word')
+                        .style('background-color', d3.rgb(200, 200, 200, 0.9))
+                        .style('height', '100%')
+                        .html(function() {
+                            list = list.split(' ');
+                            var html = "<ul>";
+                            for(var i = 0; i < list.length;) {
+                                if(list[i] == "") {
+                                    i++;
+                                } else {
+                                    
+                                    html += "<li><span><a href='" + URLFormat + list[i] 
+                                    + "' target=\'_blank\'>" + list[i] 
+                                    + "(" + list[i + 1] + ")</a></span></li>" 
+                                    i += 2;
                                 }
-                                html += "</ul>"
+                            }
+                            html += "</ul>"
 
-                                return html;
-                            });
+                            return html;
+                        });
 
-                    d.linkbox.created = true;
-                }
+                d.linkbox.created = true;
             }
 
             var closeButton = textbox.append('g').on('click', function() {
