@@ -23,14 +23,48 @@
 <body>
 <div class='header'>
   <img class='logo' src='img/we1s_logo.png'><span><h1 id='title'>Metadata-7D</h1></span>
+  <span id='info'>&#9432;</span>
 </div>
 <div class='gui'>
 </div>
-<div class="container">
-  <svg id='root' width="100%" height=100% font-family="sans-serif"></svg>
+<div class='container'>
+  <svg id='root' width='100%' height='100%'></svg>
+</div>
+<div id='infoModal' class='modal'>
+    <div class='modal-content'>
+        <span id='close-modal' class="close">&times;</span>
+        <!-- <p>
+            <b>Description</b>
+        </p> -->
+        <p>
+            <b>Authors</b><br>
+            Dan C. Baciu, Sihwa Park, WE1S Interpretation Lab.<br>
+        </p>
+        <p> 
+            <b>License</b><br>
+            This is a prototype to be used internally within <a href='https://we1s.ucsb.edu/' target='_blank'>WE1S(WhatEvery1Says)</a>. We will make it available under a Creative Commons License (CC-BY-NC) upon publication, and no later than August 2020. 
+        </p>
+        <p>
+            <b>Contributions</b><br>
+            Dan C. Baciu: data science concept, design concept, supervision (<a href='https://orcid.org/0000-0002-0043-5616' target='_blank'>orcid</a>)<br>
+            Sihwa Park: data visualization leader, interface design (<a href='https://orcid.org/0000-0001-9620-8903' target='_blank'>orcid</a>)
+        </p>
+    </div>
 </div>
 
 <script type="text/javascript">
+  var modal = document.getElementById("infoModal");
+  var info = document.getElementById("info");
+  var closeModal = document.getElementById("close-modal");
+
+  info.onclick = function() {
+      modal.style.display = "block";
+  }
+
+  closeModal.onclick = function() {
+      modal.style.display = "none";
+  }
+  
   load();
 </script>
 

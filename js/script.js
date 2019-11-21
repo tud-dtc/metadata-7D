@@ -79,7 +79,25 @@ var padding = {
         right: 25
     };
 
+
+var params = {};
+
+function getParams(url) {
+//based on the comments and ideas in https://gist.github.com/jlong/2428561
+    var parser = document.createElement('a');
+    parser.href = url;
+    var queries = parser.search.replace(/^\?/, '').split('&');
+    var params = {};
+    queries.forEach(function(q) {
+        var split = q.split('=');
+        params[split[0]] = split[1];
+    });
+
+    return params;
+}
+
 function load(reselected = false, dataType) {
+    params = getParams(window.location.href);
     checkFiles(reselected, dataType);
 };
 
@@ -135,6 +153,32 @@ function doRestForLoading(reselected, dataType) {
     progressBarWidth = w;
 
     if(reselected) selectedDataType = dataType;
+    else {
+        if(typeof params['type'] != 'undefined') {
+            var type = data_type_name.indexOf(params['type']);
+
+            if(type != -1) {
+                selectedDataType = type;
+            }
+        }
+    }
+
+    if(typeof params['leftX'] != 'undefined') {
+        vectorIndices[LEFT].x = parseInt(params['leftX']);
+    }
+
+    if(typeof params['leftY'] != 'undefined') {
+        vectorIndices[LEFT].y = parseInt(params['leftY']);
+    }
+
+    if(typeof params['rightX'] != 'undefined') {
+        vectorIndices[RIGHT].x = parseInt(params['rightX']);
+    }
+
+    if(typeof params['rightY'] != 'undefined') {
+        vectorIndices[RIGHT].y = parseInt(params['rightY']);
+    }
+
 
     document.title = 'Metadata-7D: ' + data_type_name[selectedDataType];
     d3.select('h1#title').html(document.title);

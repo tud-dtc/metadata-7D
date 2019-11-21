@@ -1,42 +1,92 @@
 html, body {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: Helvetica, Calibri, Roboto, Open Sans, sans-serif;
-    -webkit-backface-visibility: hidden;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: Helvetica, Calibri, Roboto, Open Sans, sans-serif;
+  -webkit-backface-visibility: hidden;
 }
 
 * {
-    box-sizing: inherit;
+  box-sizing: inherit;
 }
 
 #title {
-    margin: 0;
-    padding: 0 0 0 20px;
-    text-align: left;
-    /*line-height: 80px;*/
-    color: white;
-    display: inline;
-    vertical-align: middle;
+  margin: 0;
+  padding: 0 0 0 20px;
+  text-align: left;
+  /*line-height: 80px;*/
+  color: white;
+  display: inline;
+  vertical-align: middle;
 }
 
 .logo {
-    margin-left: 10px;
-    margin-top: 10px;
-    width: 80px;
-    height: 80px;
-    display: inline;
-    vertical-align: middle;
+  margin-left: 10px;
+  margin-top: 10px;
+  width: 80px;
+  height: 80px;
+  display: inline;
+  vertical-align: middle;
 }
 
 .header {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100px;
-    display: block;
-    background-color: black;
-    font-family: Roboto, Helvetica, snas-serif;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100px;
+  display: block;
+  background-color: black;
+  font-family: Roboto, Helvetica, snas-serif;
+}
+
+#info {
+  color: white;
+  font-size: 20px;
+  margin-right: 20px;
+  vertical-align: middle;
+  float: right;
+  line-height: 100px;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 9999;
+  padding-top: 200px;
+  left:0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0,0,0,0.4); 
+}
+
+.modal-content {
+  color: black;
+  background-color: #fefefe;
+  margin: auto;
+  padding: 20px;
+  border: 1px solid #888;
+  width: 80%;
+  max-width: 800px;
+  font-size: 12px;
+}
+
+.close {
+  color: #aaaaaa;
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+  position: relative;
+  top: -15px;
+  right: -10px;
+}
+
+.close:hover,
+.close:focus {
+  color: #000;
+  text-decoration: none;
+  cursor: pointer;
 }
 
 .active {
@@ -45,14 +95,14 @@ html, body {
 }
 
 .gui { 
-    position: absolute;
-    top: 100px;
-    left: 0px;
-    z-index: 9999;
+  position: absolute;
+  top: 100px;
+  left: 0px;
+  z-index: 9998;
 }
 
 .container {
-    width: 100%;
+  width: 100%;
 }
 
 text {
@@ -61,13 +111,13 @@ text {
 }
 
 text.clicked {
-    font-weight: bold;
-    text-decoration: underline;
+  font-weight: bold;
+  text-decoration: underline;
 }
 
 svg {
-    margin: auto;
-    display:block;
+  margin: auto;
+  display:block;
 }
 
 .linkbox ul {
@@ -98,20 +148,20 @@ svg {
 }
 
 .hidden {
-    display: none;
+  display: none;
 }
 
 .legend-color text {
-    font-size: 13px;
-    text-anchor: start;
+  font-size: 13px;
+  text-anchor: start;
 }
 
 
 .legend-size circle {
-    fill: rgb(200, 200, 200);
+  fill: rgb(200, 200, 200);
 }
 
 .legend-search text {
-    font-size: 13px;
-    text-anchor: start;
+  font-size: 13px;
+  text-anchor: start;
 }
