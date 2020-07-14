@@ -1,6 +1,6 @@
 var data_folder = ['data/PubD/', 'data/TimeD/', 'data/TranslateD/']
 var data_type_name = ['PubD', 'TimeD', 'TranslateD'];
-var data_type_name_exiting = data_type_name.slice();
+var data_type_name_existing = data_type_name.slice();
 let PUBD = 0, TIMED = 1, TRANSLATED = 2;
 var selectedDataType = PUBD;
 
@@ -67,6 +67,7 @@ var isKEnabled = [false, false];
 var chart = [,];
 var highlight = [,];
 var infoSVG = [,];
+var legend = [,];
 var margin = {
         top: 50,
         right: 10,
@@ -116,7 +117,7 @@ function checkFiles(reselected, dataType) {
                 if(xhr.status == 200) {
                     if(selectedDataType == -1) selectedDataType = this.index;
                 } else {
-                    data_type_name_exiting.splice(this.index, 1);
+                    data_type_name_existing.splice(this.index, 1);
                     if(this.index == selectedDataType)
                         selectedDataType = -1;
                 }
@@ -217,6 +218,20 @@ function doRestForLoading(reselected, dataType) {
         if(typeof i === 'string') {
             var config = JSON.parse(i);
             linkPath = config.link_path;
+
+            let userTitle = config.title;
+            if(typeof userTitle != 'undefined') {
+                d3.select('h1#title').html(document.title + ' - &#8220;' + userTitle + '&#8221;');
+            }
+
+            let geodURL = config.link_path['GeoD'];
+            if(typeof geodURL != 'undefined') {
+                var misc = d3.select('p#misc');
+
+                misc.html(misc.html() + '<a href=' + geodURL + ' target=\'_blank\'>GeoD</a>');
+                misc.classed('hidden', false);
+
+            }
         } else {
             console.log('Unable to load a file ' + files.config);            
         }
@@ -520,11 +535,7 @@ function init() {
 
     setChartZoom(LEFT);
     setChartZoom(RIGHT);
-    updateSizeScale(LEFT);
-    updateColorScale(LEFT);
-    updateKValueScale(LEFT);
-    updateLegend(LEFT);
-    renderData(LEFT);
+    // renderData(LEFT);
 }
 
 //Text wrapping based on https://bl.ocks.org/mbostock/7555321
@@ -618,23 +629,29 @@ function updateColorScale(pos) {
 
 function updateLegend(pos) {
     var svg = d3.select('svg');
-    svg.select('.legendSize').remove();
 
-    legend = svg.append('g')
-        .attr('class', 'legendSize')
-        .attr('transform', 'translate(' + [10, height - 30] + ')');
+    if(typeof legend[pos] != 'undefined') legend[pos].remove();
+
+    var classAttr = (pos == LEFT)? 'legendSizeLeft' : 'legendSizeRight';
+    var yPosOffset = (pos == LEFT)? 150 : 30;
+    var title = (pos == LEFT)? 'Size Scale for the Left Chart' : 'Size Scale for the Right Chart';
+
+    legend[pos] = svg.append('g')
+            .attr('class', classAttr)
+            .attr('transform', 'translate(' + [10, height - yPosOffset] + ')');
 
     var legendSize = d3.legendSize()
                     .scale(scaleSize[pos])
+                    .labelFormat(d3.format('.2s'))
                     .shape('circle')
                     .shapePadding(25)
                     .labelOffset(20)
-                    .title('Size Scale for the Left Chart')
+                    .title(title)
                     .orient('horizontal');
 
-    legend.call(legendSize);
+    legend[pos].call(legendSize);
 
-    legend.select('.legendTitle')
+    legend[pos].select('.legendTitle')
         .style('text-anchor', 'start');
 }
 
@@ -650,6 +667,10 @@ function updateSizeScale(pos) {
     scaleSize[pos] = d3.scaleLinear()
                     .domain(sizeDomain)
                     .range([2, 20]);
+}
+
+function customFormat(val) {
+    return (Math.abs(val) >= 1) ? d3.format('.2s')(val) : d3.format('.03f')(val);
 }
 
 function updateScale(pos) {
@@ -672,8 +693,8 @@ function updateScale(pos) {
                 .domain(yDomain)
                 .range([height, 0]);
     
-    xAxis[pos] = d3.axisBottom(scaleX[pos]);
-    yAxis[pos] = d3.axisLeft(scaleY[pos]).tickPadding(20);
+    xAxis[pos] = d3.axisBottom(scaleX[pos]).tickFormat(customFormat);
+    yAxis[pos] = d3.axisLeft(scaleY[pos]).tickPadding(20).tickFormat(customFormat);
 
 
     data[pos].forEach(function(d) {
@@ -1015,7 +1036,7 @@ function addGui() {
     var customContainer = $('.gui').append($(gui.domElement));
     var addingGuiFinished = false;
 
-    gui.add(gui_elements, 'data type', data_type_name_exiting).onChange(function(v) {
+    gui.add(gui_elements, 'data type', data_type_name_existing).onChange(function(v) {
         if(addingGuiFinished == false) return;
 
         d3.select('svg').selectAll('*').remove();

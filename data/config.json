@@ -1,7 +1,11 @@
 {
+
+	"title": "Collection 1: U.S. News Media, c. 1989-2019",
+	
 	"link_path":	{
 		"PubD": "../../../project_data/json/",
 		"TranslateD": "../../../project_data/json/",
-		"TimeD": "https://en.wikipedia.org/wiki/"
+		"TimeD": "https://en.wikipedia.org/wiki/",
+		"GeoD": "http://"
 	}
 }
