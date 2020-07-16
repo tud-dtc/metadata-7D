@@ -1,11 +1,15 @@
 {
-
 	"title": "Collection 1: U.S. News Media, c. 1989-2019",
 	
-	"link_path":	{
+	"data_links":	{
 		"PubD": "../../../project_data/json/",
 		"TranslateD": "../../../project_data/json/",
-		"TimeD": "https://en.wikipedia.org/wiki/",
-		"GeoD": "http://"
-	}
+		"TimeD": "https://en.wikipedia.org/wiki/"
+	},
+
+	"extra_links": [
+		{ "GeoD": "http://" },
+		{ "WE1S": "http://we1s.ucsb.edu" },
+		{ "UCSB": "http://ucsb.edu" }
+	]
 }

@@ -45,7 +45,7 @@ var colorValues =[{r: [], g: [], b: []},
 var vectorIndices = [{x: 0, y: 1, r: 1, g: 0, b: 0, size: 0, k: 0},
                     {x: 0, y: 1, r: 1, g: 0, b: 0, size: 0, k: 0}];
 
-var linkPath;
+var dataLinks;
 var scaleX = [,];
 var scaleY = [,];
 var xAxis = [,];
@@ -71,8 +71,8 @@ var legend = [,];
 var margin = {
         top: 50,
         right: 10,
-        bottom: 50,
-        left: 300
+        bottom: 100,
+        left: 320
     };
 
 var padding = {
@@ -217,20 +217,28 @@ function doRestForLoading(reselected, dataType) {
     load_data('data/' + files.config, function(e, i) {
         if(typeof i === 'string') {
             var config = JSON.parse(i);
-            linkPath = config.link_path;
+            dataLinks = config.data_links;
 
             let userTitle = config.title;
             if(typeof userTitle != 'undefined') {
                 d3.select('h1#title').html(document.title + ' - &#8220;' + userTitle + '&#8221;');
             }
 
-            let geodURL = config.link_path['GeoD'];
-            if(typeof geodURL != 'undefined') {
+            let extra_links = config.extra_links;
+
+            if(typeof extra_links != 'undefined' && extra_links.length > 0) {
                 var misc = d3.select('p#misc');
 
-                misc.html(misc.html() + '<a href=' + geodURL + ' target=\'_blank\'>GeoD</a>');
-                misc.classed('hidden', false);
+                var linksHTML = '<ul>';
+                extra_links.forEach(function(link_info) {
+                    let name = Object.keys(link_info)[0];
+                    let url = link_info[name];
+                    linksHTML += '<li><a href=' + url + ' target=\'_blank\'>' + name + '</a></li>';
+                });
+                linksHTML += '</ul>';
 
+                misc.html(misc.html() + linksHTML);
+                misc.classed('hidden', false);
             }
         } else {
             console.log('Unable to load a file ' + files.config);            
@@ -522,24 +530,22 @@ function init() {
 
         chart[pos].append('text')
             .attr('class', 'x-title-' + strPos)
-            .attr('text-anchor', 'middle')
-            .attr('transform', 'translate(' + [width, height + margin.bottom * 0.7] + ')')
+            .attr('x', width)
+            .attr('y', height + margin.bottom * 0.3)
             .text(data[pos].vectors_metadata[vectorIndices[pos].x]);
 
         chart[pos].append('text')
             .attr('class', 'y-title-' + strPos)
-            .attr('text-anchor', 'middle')
-            .attr('transform', 'translate(' + [-20, -margin.top * 0.2] + ')')
-            .text('Publisher')
+            .attr('x', 10)
+            .attr('y', -margin.top * 0.3)
+            .text('Publisher');
     }
 
     setChartZoom(LEFT);
     setChartZoom(RIGHT);
-    // renderData(LEFT);
 }
 
 //Text wrapping based on https://bl.ocks.org/mbostock/7555321
-//Later, use https://github.com/vijithassar/d3-textwrap instead because of the license issue
 function wrap(text, width) {
 
     text.each(function () {
@@ -580,9 +586,9 @@ function wrap(text, width) {
 function updateAxesTitle(pos) {
     var strPos = (pos == LEFT)? 'left':'right';
     chart[pos].select('.x-title-' + strPos)
-            .text(data[pos].vectors_metadata[vectorIndices[pos].x]);
+            .text(data[pos].vectors_metadata[vectorIndices[pos].x]).call(wrap, 100);
     chart[pos].select('.y-title-' + strPos)
-            .text(data[pos].vectors_metadata[vectorIndices[pos].y])
+            .text(data[pos].vectors_metadata[vectorIndices[pos].y]);
 }
 
 function updateKValueScale(pos) {
@@ -633,12 +639,12 @@ function updateLegend(pos) {
     if(typeof legend[pos] != 'undefined') legend[pos].remove();
 
     var classAttr = (pos == LEFT)? 'legendSizeLeft' : 'legendSizeRight';
-    var yPosOffset = (pos == LEFT)? 150 : 30;
+    var yPosOffset = (pos == LEFT)? 120 : 10;
     var title = (pos == LEFT)? 'Size Scale for the Left Chart' : 'Size Scale for the Right Chart';
 
     legend[pos] = svg.append('g')
             .attr('class', classAttr)
-            .attr('transform', 'translate(' + [10, height - yPosOffset] + ')');
+            .attr('transform', 'translate(' + [30, height - yPosOffset] + ')');
 
     var legendSize = d3.legendSize()
                     .scale(scaleSize[pos])
@@ -881,7 +887,7 @@ function renderData(pos) {
                     .on('mouseover', function() { infoSVG[pos].on('.zoom', null); })
                     .on('mouseout', function() { setChartZoom(pos);});
                 
-                var URLFormat = linkPath[data_type_name[selectedDataType]];
+                var URLFormat = dataLinks[data_type_name[selectedDataType]];
                 
                 var div = fo.append('xhtml:div')
                         .attr('class', 'linkbox')
