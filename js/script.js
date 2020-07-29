@@ -181,7 +181,7 @@ function doRestForLoading(reselected, dataType) {
     }
 
 
-    document.title = 'Metadata-7D: ' + data_type_name[selectedDataType];
+    document.title = '7D: ' + data_type_name[selectedDataType];
     d3.select('h1#title').html(document.title);
 
     var g = svg.append('g')
