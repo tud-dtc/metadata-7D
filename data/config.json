@@ -1,5 +1,5 @@
 {
-	"title": "Collection 1: U.S. News Media, c. 1989-2019",
+	"title": "Dan C. Baciu. 'Cultural Life' BioSystems (2020), Fig 3.",
 	
 	"data_links":	{
 		"PubD": "../../../project_data/json/",
@@ -8,8 +8,11 @@
 	},
 
 	"extra_links": [
-		{ "GeoD": "http://" },
-		{ "WE1S": "http://we1s.ucsb.edu" },
-		{ "UCSB": "http://ucsb.edu" }
+		{ "Research article": "https://doi.org/10.1016/j.biosystems.2020.104208" },
+		{ "Figure 3 A,B": "https://doi.org/10.25496/W2WC7S" },
+		{ "Figure 3 C,D": "https://doi.org/10.25496/W2159Q" },
+		{ "Figure 4 D": "https://doi.org/10.25496/W27P4V" },
+		{ "GeoD of Humanities Model H": "https://doi.org/10.25496/W2059D" },
+		{ "Code": "https://doi.org/10.25496/W23W2X" }		
 	]
 }
